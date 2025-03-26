@@ -25,7 +25,7 @@ import { getIPAddress } from "./utils/utils.js";
 import "./models/models.js";
 import authRoutes from "./routes/user/auth.route.js";
 import profileRoutes from "./routes/user/profile.route.js";
-// import projectRoutes from "./routes/project/project.route.js";
+import dashboardRoutes from "./routes/dashboard/dashboard.route.js";
 // import applicationRoutes from "./routes/application/application.route.js";
 
 // =========================================
@@ -90,7 +90,7 @@ app.get("/", (req, res) => {
 // other routes
 app.use("/api/user/auth", authRoutes);
 app.use("/api/user/profile", profileRoutes);
-// app.use("/api/project", projectRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 // app.use("/api/application", applicationRoutes);
 
 // =========================================

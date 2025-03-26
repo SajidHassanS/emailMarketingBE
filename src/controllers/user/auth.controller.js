@@ -2,7 +2,7 @@
 import { Sequelize } from "sequelize";
 // import BlacklistToken from "../../models/user/blackListToken.model.js";
 // import jwt from "jsonwebtoken";
-import Student from "../../models/user/user.model.js"; // Updated to reflect the new model
+// import Student from "../../models/user/user.model.js"; // Updated to reflect the new model
 import { bodyReqFields } from "../../utils/requiredFields.js";
 import { convertToLowercase, validateCountryCode, validateEmail, validatePhone, validateUsername } from "../../utils/utils.js";
 import {
@@ -27,11 +27,15 @@ import {
   UnauthorizedError,
   sequelizeValidationError,
   forbiddenError,
+  notFound,
 } from "../../utils/responses.js";
-import User from "../../models/user/user.model.js";
+// import User from "../../models/user/user.model.js";
 import { jwtSecret } from "../../config/initialConfig.js";
 import jwt from 'jsonwebtoken';
-import BlacklistToken from "../../models/user/blackListToken.model.js";
+// import BlacklistToken from "../../models/user/blackListToken.model.js";
+// import Password from "../../models/password/password.model.js";
+import models from "../../models/models.js";
+const { User, BlacklistToken, Password } = models
 
 // ========================= Register User ============================
 
@@ -81,6 +85,13 @@ export async function registerUser(req, res) {
     // ✅ Hash Password Before Saving
     const hashedPassword = await hashPassword(password);
 
+    // Get active passwords
+    const passwords = await Password.findAll({ where: { active: true }, order: [['uuid', 'ASC']] });
+
+    // Count existing users to determine which password to assign
+    const userCount = await User.count();
+    const passwordIndex = userCount % passwords.length; // Round-robin assignment
+
     let userData = {}
     // ✅ Prepare Data for Insertion
     userData.username = username
@@ -90,6 +101,7 @@ export async function registerUser(req, res) {
     if (referCode) userData.referCode = referCode
     userData.bonus = 0 // get bonus set by admin
     userData.active = false
+    if (passwords.length !== 0) userData.passwordUuid = passwords[passwordIndex].uuid // assign password for email generation
 
     console.log("===== userData ===== : ", userData);
 
