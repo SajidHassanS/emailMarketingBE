@@ -1,23 +1,29 @@
 import Student from "../../models/user/user.model.js";
-import { convertToLowercase, getRelativePath, validateCountryCode, validatePhone } from "../../utils/utils.js";
+import {
+  convertToLowercase,
+  getRelativePath,
+  validateCountryCode,
+  validatePhone,
+} from "../../utils/utils.js";
 import {
   catchError,
   validationError,
   successOk,
   successOkWithData,
-  UnauthorizedError
+  UnauthorizedError,
 } from "../../utils/responses.js";
 import User from "../../models/user/user.model.js";
+import Password from "../../models/password/password.model.js";
 
 // ========================= Get Profile ============================
 
 export async function getProfile(req, res) {
   try {
-    const userUid = req.userUid
+    const userUid = req.userUid;
 
-    const profile = await User.findByPk(userUid, {
+    let profile = await User.findByPk(userUid, {
       attributes: {
-        exclude: ["password", "createdAt", "updatedAt"]
+        exclude: ["password", "createdAt", "updatedAt"],
       },
       // attributes: [
       //   "uuid",
@@ -40,6 +46,35 @@ export async function getProfile(req, res) {
     });
     if (!profile) return UnauthorizedError(res, "Invalid token");
 
+    // assign password
+    if (profile.passwordUuid === null) {
+      // Get active passwords
+      const passwords = await Password.findAll({
+        where: { active: true },
+        order: [["uuid", "ASC"]],
+      });
+
+      // If no active passwords are available, return the profile as is
+      if (passwords.length === 0) {
+        return successOkWithData(res, "Profile fetched successfully", profile);
+      }
+
+      // Assign a password in a round-robin manner
+      const userCount = await User.count();
+      const passwordIndex = userCount % passwords.length;
+      await User.update(
+        { passwordUuid: passwords[passwordIndex].uuid },
+        { where: { uuid: userUid } }
+      );
+    }
+
+    // Fetch the updated profile to reflect the assigned passwordUuid
+    profile = await User.findByPk(userUid, {
+      attributes: {
+        exclude: ["password", "createdAt", "updatedAt"],
+      },
+    });
+
     return successOkWithData(res, "Profile fetched successfully", profile);
   } catch (error) {
     return catchError(res, error);
@@ -50,9 +85,23 @@ export async function getProfile(req, res) {
 
 export async function updateProfile(req, res) {
   try {
-    const userUid = req.userUid
+    const userUid = req.userUid;
 
-    const { firstName, lastName, countryCode, phone, gender, dateOfBirth, cnic, education, experience, address, tehsil, district, province } = req.body;
+    const {
+      firstName,
+      lastName,
+      countryCode,
+      phone,
+      gender,
+      dateOfBirth,
+      cnic,
+      education,
+      experience,
+      address,
+      tehsil,
+      district,
+      province,
+    } = req.body;
 
     let fieldsToUpdate = {};
 
@@ -85,10 +134,13 @@ export async function updateProfile(req, res) {
     }
 
     const excludedFields = ["profileImg"];
-    const fieldsToUpdateLowered = convertToLowercase(fieldsToUpdate, excludedFields);
+    const fieldsToUpdateLowered = convertToLowercase(
+      fieldsToUpdate,
+      excludedFields
+    );
 
-    console.log(" ===== fieldsToUpdate ===== ", fieldsToUpdate)
-    console.log(" ===== fieldsToUpdateLowered ===== ", fieldsToUpdateLowered)
+    console.log(" ===== fieldsToUpdate ===== ", fieldsToUpdate);
+    console.log(" ===== fieldsToUpdateLowered ===== ", fieldsToUpdateLowered);
     await User.update(fieldsToUpdate, {
       where: { uuid: userUid },
     });

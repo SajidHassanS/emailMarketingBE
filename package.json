@@ -25,6 +25,7 @@
 		"pg": "^8.14.1",
 		"pg-hstore": "^2.3.4",
 		"sequelize": "^6.37.6",
+		"tesseract.js": "^6.0.0",
 		"unique-names-generator": "^4.7.1"
 	},
 	"devDependencies": {

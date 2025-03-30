@@ -23,7 +23,11 @@ const storage = diskStorage({
   },
   filename: (req, file, cb) => {
     const fileExtension = extname(file.originalname);
-    const filename = `${req.userUid}${fileExtension}`;
+    // const filename = `${req.userUid}${fileExtension}`; // old code
+    // Use the filename from middleware if it exists, otherwise use the default format
+    const filename = req.filename
+      ? `${req.filename}${fileExtension}`
+      : `${req.userUid}${fileExtension}`;
     cb(null, filename);
   },
 });

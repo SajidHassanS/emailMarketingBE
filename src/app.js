@@ -26,7 +26,7 @@ import "./models/models.js";
 import authRoutes from "./routes/user/auth.route.js";
 import profileRoutes from "./routes/user/profile.route.js";
 import dashboardRoutes from "./routes/dashboard/dashboard.route.js";
-// import applicationRoutes from "./routes/application/application.route.js";
+import emailRoutes from "./routes/email/email.route.js";
 
 // =========================================
 //            Configurations
@@ -91,7 +91,7 @@ app.get("/", (req, res) => {
 app.use("/api/user/auth", authRoutes);
 app.use("/api/user/profile", profileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-// app.use("/api/application", applicationRoutes);
+app.use("/api/email", emailRoutes);
 
 // =========================================
 //            Global Error Handler
