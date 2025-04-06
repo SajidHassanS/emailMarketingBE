@@ -27,6 +27,9 @@ import authRoutes from "./routes/user/auth.route.js";
 import profileRoutes from "./routes/user/profile.route.js";
 import dashboardRoutes from "./routes/dashboard/dashboard.route.js";
 import emailRoutes from "./routes/email/email.route.js";
+import notificationRoutes from "./routes/notification/notification.route.js";
+import withdrawalRoutes from "./routes/withdrawal/withdrawal.route.js";
+import withdrawalMethodRoutes from "./routes/withdrawal/withdrawalMethod.route.js";
 
 // =========================================
 //            Configurations
@@ -92,6 +95,9 @@ app.use("/api/user/auth", authRoutes);
 app.use("/api/user/profile", profileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/email", emailRoutes);
+app.use("/api/notification", notificationRoutes);
+app.use("/api/withdrawal", withdrawalRoutes);
+app.use("/api/withdrawal-method", withdrawalMethodRoutes);
 
 // =========================================
 //            Global Error Handler
