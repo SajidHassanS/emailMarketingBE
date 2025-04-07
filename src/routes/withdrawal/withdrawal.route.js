@@ -8,9 +8,11 @@ const router = express.Router();
 
 router
   .route("/available-balance")
-  .get(verifyToken, withdrawalCtrl.getAvailableBalance); // Get all email
+  .get(verifyToken, withdrawalCtrl.getAvailableBalance); // Get available balance
 
-router.route("/request").get(verifyToken, withdrawalCtrl.requestWithdrawal); // Get all email
+router.route("/request").post(verifyToken, withdrawalCtrl.requestWithdrawal); //  Request withdrawal
+
+router.route("/my").get(verifyToken, withdrawalCtrl.getMyWithdrawals); // Get all withdrawal requests
 
 // router
 //   .route("/")

@@ -54,8 +54,8 @@ export async function registerUser(req, res) {
     // ✅ Convert relevant fields to lowercase (excluding sensitive ones)
     const excludedFields = ['countryCode', 'phone', 'password', 'confirmPassword'];
     const requiredData = convertToLowercase(req.body, excludedFields);
-    let { username, countryCode, phone, password, confirmPassword, referCode } = requiredData;
-    // let { referCode } = req.body // use this referCode is case sensitive
+    let { countryCode, phone, password, confirmPassword } = requiredData;
+    let { username, referCode } = req.body // use this referCode is case sensitive
 
     // ✅ Validate User Name
     const usernameError = validateUsername(username)
@@ -92,13 +92,19 @@ export async function registerUser(req, res) {
     const userCount = await User.count();
     const passwordIndex = userCount % passwords.length; // Round-robin assignment
 
+    // ✅ If referCode is provided, check if it exists in the User table
+    let referUser = null;
+    if (referCode) {
+      referUser = await User.findOne({ where: { username: referCode } });
+    }
+
     let userData = {}
     // ✅ Prepare Data for Insertion
     userData.username = username
     userData.phone = phone
     userData.countryCode = countryCode
     userData.password = hashedPassword
-    if (referCode) userData.referCode = referCode
+    if (referUser) userData.referCode = referCode // Assign referCode only if referCode is valid
     userData.bonus = 0 // get bonus set by admin
     userData.active = false
     if (passwords.length !== 0) userData.passwordUuid = passwords[passwordIndex].uuid // assign password for email generation
@@ -108,7 +114,14 @@ export async function registerUser(req, res) {
     // ✅ Create New User in Database
     await User.create(userData);
 
-    return created(res, "User profile created successfully.");
+    // Send response
+    if (referCode && referUser) {
+      return created(res, "User profile created successfully.");
+    } else if (referCode && !referUser) {
+      return created(res, "User profile created successfully, but the provided referCode is invalid.");
+    } else {
+      return created(res, "User profile created successfully.");
+    }
   } catch (error) {
     console.log(error);
 

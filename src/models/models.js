@@ -6,6 +6,7 @@ import DuplicateEmail from "./email/duplicateEmail.model.js";
 import Notification from "./notification/notification.model.js";
 import Withdrawal from "./withdrawal/withdarwal.model.js";
 import WithdrawalMethod from "./withdrawal/withdrawalMethod.model.js";
+import SystemSetting from "./systemSetting/systemSetting.model.js";
 
 const models = {
   User,
@@ -16,6 +17,7 @@ const models = {
   DuplicateEmail,
   Withdrawal,
   WithdrawalMethod,
+  SystemSetting,
 };
 
 export default models;

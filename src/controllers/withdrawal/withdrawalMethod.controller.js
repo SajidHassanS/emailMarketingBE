@@ -45,7 +45,7 @@ export async function addWithdrawalMethod(req, res) {
     ]);
     if (reqBodyFields.error) return reqBodyFields.response;
 
-    const { methodType, accountNumber, accountTitle } = req.body;
+    const { methodType, accountNumber, accountTitle, markDefault } = req.body;
 
     if (!["easypaisa", "jazzcash", "bank"].includes(methodType)) {
       return frontError(res, "Invalid method type.");
