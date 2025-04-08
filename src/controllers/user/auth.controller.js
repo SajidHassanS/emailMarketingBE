@@ -35,6 +35,9 @@ import jwt from 'jsonwebtoken';
 // import BlacklistToken from "../../models/user/blackListToken.model.js";
 // import Password from "../../models/password/password.model.js";
 import models from "../../models/models.js";
+import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
+import Bonus from "../../models/bonus/bonus.model.js";
+import { createNotification } from "../notification/notification.controller.js";
 const { User, BlacklistToken, Password } = models
 
 // ========================= Register User ============================
@@ -105,16 +108,55 @@ export async function registerUser(req, res) {
     userData.countryCode = countryCode
     userData.password = hashedPassword
     if (referUser) userData.referCode = referCode // Assign referCode only if referCode is valid
-    userData.bonus = 0 // get bonus set by admin
+    // userData.bonus = 0 // get bonus set by admin | not needed any more
     userData.active = false
     if (passwords.length !== 0) userData.passwordUuid = passwords[passwordIndex].uuid // assign password for email generation
 
     console.log("===== userData ===== : ", userData);
 
     // ✅ Create New User in Database
-    await User.create(userData);
+    const newUser = await User.create(userData);
 
-    // Send response
+    // ✅ Add Signup Bonus
+    const signupBonus = await SystemSetting.findOne({ where: { key: "default_signup_bonus" } });
+    if (signupBonus) {
+      await Bonus.create({
+        userUuid: newUser.uuid,
+        type: 'signup',
+        amount: parseInt(signupBonus.value),
+        status: 'pending',
+      });
+    }
+
+    // ✅ Add Referral Bonus (to the referring user, if applicable)
+    let referralBonusStatus = ''; // To store message about referral bonus status
+    if (referCode && referUser) {
+      const referralBonus = await SystemSetting.findOne({ where: { key: "default_referral_bonus" } });
+      if (referralBonus) {
+        await Bonus.create({
+          userUuid: referUser.uuid,
+          type: 'referral',
+          amount: parseInt(referralBonus.value),
+          status: 'pending',
+          refereeUuid: newUser.uuid,  // Storing the refereeUuid (new user who used the referral code)
+        });
+        referralBonusStatus = 'Referral bonus awarded successfully.';
+      } else {
+        referralBonusStatus = 'No referral bonus awarded. Please contact admin for more details.';
+      }
+    }
+
+    // ✅ Create a Welcome Notification for the New User
+    const notificationMessage = `Welcome ${newUser.username}! Your account has been successfully created. ${referralBonusStatus}`;
+    await createNotification({
+      userUuid: newUser.uuid,
+      title: 'Welcome to the Platform',
+      message: notificationMessage,
+      type: "info",
+    });
+
+
+    // Send response with appropriate messages
     if (referCode && referUser) {
       return created(res, "User profile created successfully.");
     } else if (referCode && !referUser) {

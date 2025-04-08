@@ -14,6 +14,10 @@ router.route("/request").post(verifyToken, withdrawalCtrl.requestWithdrawal); //
 
 router.route("/my").get(verifyToken, withdrawalCtrl.getMyWithdrawals); // Get all withdrawal requests
 
+router.route("/bonus").get(verifyToken, withdrawalCtrl.getBonus) // Get available bonuses ( signup, referral)
+  .post(verifyToken, withdrawalCtrl.requestBonusWithdrawal); //  Request bonus withdrawal
+router.route("/bonus/my").get(verifyToken, withdrawalCtrl.getMyBonusWithdrawals); // Get all withdrawal requests
+
 // router
 //   .route("/")
 //   .get(verifyToken, withdrawalCtrl.getAllEmails) // Temporary Get all email
