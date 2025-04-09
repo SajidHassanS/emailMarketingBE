@@ -1,4 +1,4 @@
-module.exports = {
+export default {
   apps: [
     {
       name: "inventory-management",
@@ -18,7 +18,6 @@ module.exports = {
         EMAIL: "greenageservices@gmail.com",
         EMAIL_PASS: "dvdv qnxh exft qqde",
 
-        // Uncomment and use if needed
         JAZZCASH_MERCHANT_ID: "89798745",
         JAZZCASH_PASSWORD: "620sss8h2u",
         JAZZCASH_HASH_SALT: "3y5s486t2w"
