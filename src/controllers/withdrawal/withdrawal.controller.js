@@ -85,7 +85,6 @@ export async function requestWithdrawal(req, res) {
     //     // Default to 100 if the setting doesn't exist
     //     const referralThreshold = settings ? settings.value : 100;
 
-<<<<<<< Updated upstream
     //     // Check if the referrer has withdrawn enough (dynamic threshold)
     //     if (referrerWithdrawals < referralThreshold) {
     //       return frontError(res, `You cannot withdraw until your referrer has withdrawn ${referralThreshold} PKR.`);
@@ -94,16 +93,6 @@ export async function requestWithdrawal(req, res) {
     //     return frontError(res, "Referrer not found.");
     //   }
     // }
-=======
-        // Check if the referrer has withdrawn enough (dynamic threshold)
-        // if (referrerWithdrawals < referralThreshold) {
-        //   return frontError(res, `You cannot withdraw until your referrer has withdrawn ${referralThreshold} PKR.`);
-        // }   
-      } else {
-        return frontError(res, "Referrer not found.");
-      }
-    }
->>>>>>> Stashed changes
 
     // Get all eligible emails for withdrawal
     const availableEmails = await Email.findAll({
