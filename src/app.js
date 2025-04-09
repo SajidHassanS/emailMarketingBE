@@ -113,9 +113,9 @@ app.use((err, req, res, next) => {
 
 // Database connection
 connectDB();
-
+ 
 // Server running
-app.listen(port, () => {
+app.listen(port,"0.0.0.0", () => {
   console.log(
     chalk.bgYellow.bold(
       ` Server is listening at http://${getIPAddress()}:${port} `
