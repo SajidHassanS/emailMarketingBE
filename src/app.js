@@ -52,11 +52,13 @@ app.use(cookieParser());
 app.use(helmet());
 
 // Enable CORS with default settings
-const crosOptions = {
-  origin: nodeEnv === "production" ? domain : "*", // allow requests from all ips in development, and use array for multiple domains
-  // allowedHeaders: ['Content-Type', 'Authorization', 'x-token', 'y-token'],    // allow these custom headers only
+const corsOptions = {
+  origin: nodeEnv === "production" ? domain : "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true, // Only if using cookies/auth headers
 };
-app.use(cors(crosOptions));
+app.use(cors(corsOptions));
 
 // Logger middleware for development environment
 if (nodeEnv !== "production") {
@@ -113,9 +115,9 @@ app.use((err, req, res, next) => {
 
 // Database connection
 connectDB();
- 
+
 // Server running
-app.listen(port,"0.0.0.0", () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(
     chalk.bgYellow.bold(
       ` Server is listening at http://${getIPAddress()}:${port} `
