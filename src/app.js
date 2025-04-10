@@ -53,11 +53,11 @@ app.use(helmet());
 
 // Enable CORS with default settings
 const corsOptions = {
-  origin: nodeEnv === "production" ? domain : "*",
+  origin: "*", // ✅ Allow any origin
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // Only if using cookies/auth headers
 };
+
 app.use(cors(corsOptions));
 
 // Logger middleware for development environment
