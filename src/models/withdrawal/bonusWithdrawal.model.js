@@ -1,6 +1,6 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../../config/dbConfig.js";
-import Bonus from "./bonus.model.js";
+import Bonus from "../withdrawal/bonus.model.js";
 import User from "../user/user.model.js";
 
 const BonusWithdrawal = sequelize.define(
@@ -11,24 +11,29 @@ const BonusWithdrawal = sequelize.define(
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
         },
-        // bonusUuid: {
-        //     type: DataTypes.UUID,
-        //     allowNull: false,
-        //     references: {
-        //         model: "Bonuses",
-        //         key: "uuid",
-        //     },
-        //     onDelete: "CASCADE",
-        // },
-        // userUuid: {
-        //     type: DataTypes.UUID,
-        //     allowNull: false,
-        //     references: {
-        //         model: "Users",
-        //         key: "uuid",
-        //     },
-        //     onDelete: "CASCADE",
-        // },
+        bonusUuid: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: "Bonuses",
+                key: "uuid",
+            },
+            onDelete: "CASCADE",
+        },
+        userUuid: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: "Users",
+                key: "uuid",
+            },
+            onDelete: "CASCADE",
+        },
+        withdrawalMethodUuid: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: { model: "WithdrawalMethod", key: "uuid" },
+        },
         status: {
             type: DataTypes.ENUM('pending', 'approved', 'withdrawn'),
             defaultValue: 'pending',

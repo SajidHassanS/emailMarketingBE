@@ -1,12 +1,9 @@
 import { Op } from "sequelize";
 import models from "../../models/models.js";
-import User from "../../models/user/user.model.js";
 import { catchError, frontError, successOkWithData, validationError } from "../../utils/responses.js";
-import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
 import { bodyReqFields } from "../../utils/requiredFields.js";
-const { Email, Withdrawal, WithdrawalMethod, Bonus } = models;
+const { Email, Withdrawal, WithdrawalMethod, Bonus, BonusWithdrawal, SystemSetting } = models;
 import { createNotification } from "../notification/notification.controller.js";
-import BonusWithdrawal from "../../models/bonus/bonusWithdrawal.model.js";
 
 // Get Available Balance for the User
 export async function getAvailableBalance(req, res) {
@@ -228,7 +225,34 @@ export async function requestBonusWithdrawal(req, res) {
   ]);
   if (reqBodyFields.error) return reqBodyFields.response;
 
-  const { bonusType } = req.body;
+  const { bonusType, method } = req.body; // Optional: methodType to override default
+
+  // Fetch user's default withdrawal method
+  const defaultMethod = await WithdrawalMethod.findOne({
+    where: { userUuid, isDefault: true },
+  });
+
+  if (!defaultMethod) {
+    return frontError(
+      res,
+      "No default withdrawal method found. Please add one."
+    );
+  }
+
+  let methodToUse = defaultMethod;
+
+  // If user provided a methodType, use it instead
+  if (method) {
+    const providedMethod = await WithdrawalMethod.findOne({
+      where: { userUuid, methodType: method },
+    });
+
+    if (!providedMethod) {
+      return frontError(res, "Specified withdrawal method not found.");
+    }
+
+    methodToUse = providedMethod;
+  }
 
   // Validate bonusType
   if (!['signup', 'referral'].includes(bonusType)) {
@@ -253,10 +277,24 @@ export async function requestBonusWithdrawal(req, res) {
       return validationError(res, `Your ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus is locked until you make your first withdrawal.`);
     }
 
+    // ✅ Check if a withdrawal request for the same bonus already exists
+    const existingRequest = await BonusWithdrawal.findOne({
+      where: {
+        bonusUuid: bonus.uuid,
+        userUuid: userUuid,
+        status: 'pending', // Optionally check only 'pending' requests
+      },
+    });
+
+    if (existingRequest) {
+      return validationError(res, `You have already created a withdrawal request for this ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus.`);
+    }
+
     // ✅ Create a new withdrawal request
     const withdrawalRequest = await BonusWithdrawal.create({
       bonusUuid: bonus.uuid,
       userUuid: userUuid,
+      withdrawalMethodUuid: methodToUse.uuid,
       status: 'pending', // Set status as pending initially
     });
 
