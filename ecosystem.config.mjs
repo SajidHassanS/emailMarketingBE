@@ -7,7 +7,7 @@ export default {
       env: {
         NODE_ENV: "development",
         DOMAIN: "https://agoradanceback.app",
-        PORT: 4000,
+        PORT: 7000,
 
         DATABASE_URL: "postgresql://postgres:hassan526688@localhost:5432/",
         DATABASE_NAME: "project2",
@@ -18,10 +18,10 @@ export default {
         EMAIL: "greenageservices@gmail.com",
         EMAIL_PASS: "dvdv qnxh exft qqde",
 
-        JAZZCASH_MERCHANT_ID: "89798745",
-        JAZZCASH_PASSWORD: "620sss8h2u",
-        JAZZCASH_HASH_SALT: "3y5s486t2w"
-      }
-    }
-  ]
+        // JAZZCASH_MERCHANT_ID: "89798745",
+        // JAZZCASH_PASSWORD: "620sss8h2u",
+        // JAZZCASH_HASH_SALT: "3y5s486t2w"
+      },
+    },
+  ],
 };
