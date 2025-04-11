@@ -1,54 +1,58 @@
-// Import required modules and configuration
 import chalk from "chalk";
 import { Sequelize } from "sequelize";
 import { dbUrl } from "./initialConfig.js";
 
+// Log the DB URL being used (masked for safety in real projects)
+console.log(chalk.blue("Loaded DB URL from config:"), dbUrl);
+
+// Initialize Sequelize with full SSL config
 const sequelize = new Sequelize(dbUrl, {
   dialect: "postgres",
   dialectOptions: {
     ssl: {
       require: true,
-      rejectUnauthorized: false, // ✅ This allows RDS’s self-signed cert
+      rejectUnauthorized: false, // ✅ Allows self-signed RDS certs
     },
   },
 });
 
-// Async function to connect to the MongoDB database
+// Async function to connect to the database
 export const connectDB = async () => {
   try {
-    // 🔍 DEBUG: Print the actual DB URL being used
     console.log(
-      chalk.blue.bold("Connecting to DB with:"),
+      chalk.cyanBright("▶ Connecting to database with:"),
       process.env.DATABASE_URL
     );
 
-    // Connect to the database
+    // Log Sequelize dialect options to verify runtime config
+    console.log("▶ Dialect Options:", sequelize.options.dialectOptions);
+
+    // Attempt DB connection
     await sequelize.authenticate();
 
-    console.log(`${chalk.green.bold("Connected to the database")}`);
+    console.log(chalk.green.bold("✅ Connected to the database"));
     console.log(
-      `${chalk.green.bold(
+      chalk.green(
         "============================================================"
-      )}`
+      )
     );
 
+    // Sync Sequelize models
     await sequelize.sync();
-    console.log(`${chalk.green.bold("Models synced successfully")}`);
+    console.log(chalk.green.bold("✅ Models synced successfully"));
     console.log(
-      `${chalk.green.bold(
+      chalk.green(
         "============================================================"
-      )}`
+      )
     );
   } catch (error) {
-    console.log(`${chalk.red.bold("Error")} connecting to database `, error);
+    console.error(chalk.red.bold("❌ Error connecting to database:"), error);
     console.log(
-      `${chalk.green.bold(
-        "============================================================"
-      )}`
+      chalk.red("============================================================")
     );
-    process.exit(1); // This is what's crashing your app — leave it in for now
+    process.exit(1); // Crash the app intentionally on DB connection failure
   }
 };
 
-// Export the connectDB function
+// Export Sequelize instance
 export default sequelize;
