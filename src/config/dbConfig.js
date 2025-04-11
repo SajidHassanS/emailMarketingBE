@@ -6,14 +6,15 @@ import { dbUrl } from "./initialConfig.js";
 console.log(chalk.blue("Loaded DB URL from config:"), dbUrl);
 
 // Initialize Sequelize with full SSL config
-const sequelize = new Sequelize(dbUrl, {
+const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: "postgres",
   dialectOptions: {
     ssl: {
       require: true,
-      rejectUnauthorized: false, // ✅ Allows self-signed RDS certs
+      rejectUnauthorized: false,
     },
   },
+  logging: console.log, // Optional: show raw SQL logs
 });
 
 // Async function to connect to the database
