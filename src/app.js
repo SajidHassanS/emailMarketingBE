@@ -30,6 +30,7 @@ import emailRoutes from "./routes/email/email.route.js";
 import notificationRoutes from "./routes/notification/notification.route.js";
 import withdrawalRoutes from "./routes/withdrawal/withdrawal.route.js";
 import withdrawalMethodRoutes from "./routes/withdrawal/withdrawalMethod.route.js";
+import messageRoutes from "./routes/message/message.route.js";
 
 // =========================================
 //            Configurations
@@ -98,6 +99,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/withdrawal", withdrawalRoutes);
 app.use("/api/withdrawal-method", withdrawalMethodRoutes);
+app.use("/api/chat", messageRoutes);
 
 // =========================================
 //            Global Error Handler
@@ -113,9 +115,9 @@ app.use((err, req, res, next) => {
 
 // Database connection
 connectDB();
- 
+
 // Server running
-app.listen(port,"0.0.0.0", () => {
+app.listen(port, "0.0.0.0", () => {
   console.log(
     chalk.bgYellow.bold(
       ` Server is listening at http://${getIPAddress()}:${port} `

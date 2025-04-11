@@ -60,48 +60,6 @@ export async function requestWithdrawal(req, res) {
       methodToUse = providedMethod;
     }
 
-    // Check if the user was referred (i.e., has a referCode)
-    // const user = await User.findOne({ where: { uuid: userUuid } });
-
-    // if (user && user.referCode) {
-    //   // Find the referrer using the referCode (username)
-    //   const referrer = await User.findOne({ where: { username: user.referCode } });
-
-    //   if (referrer) {
-    //     // Get the referrer's total withdrawn amount
-    //     const referrerWithdrawals = await Withdrawal.sum("amount", {
-    //       where: {
-    //         userUuid: referrer.uuid,
-    //         status: "approved", // Only consider approved withdrawals
-    //       },
-    //     });
-
-    //     // Fetch the referral withdrawal threshold from system settings
-    //     const settings = await SystemSetting.findOne({ where: { key: 'referral_withdrawal_threshold' } });
-
-    //     // Default to 100 if the setting doesn't exist
-    //     const referralThreshold = settings ? settings.value : 100;
-
-<<<<<<< Updated upstream
-    //     // Check if the referrer has withdrawn enough (dynamic threshold)
-    //     if (referrerWithdrawals < referralThreshold) {
-    //       return frontError(res, `You cannot withdraw until your referrer has withdrawn ${referralThreshold} PKR.`);
-    //     }
-    //   } else {
-    //     return frontError(res, "Referrer not found.");
-    //   }
-    // }
-=======
-        // Check if the referrer has withdrawn enough (dynamic threshold)
-        // if (referrerWithdrawals < referralThreshold) {
-        //   return frontError(res, `You cannot withdraw until your referrer has withdrawn ${referralThreshold} PKR.`);
-        // }   
-      } else {
-        return frontError(res, "Referrer not found.");
-      }
-    }
->>>>>>> Stashed changes
-
     // Get all eligible emails for withdrawal
     const availableEmails = await Email.findAll({
       where: { userUuid, status: "good", isWithdrawn: false },
