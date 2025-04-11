@@ -3,7 +3,15 @@ import chalk from "chalk";
 import { Sequelize } from "sequelize";
 import { dbUrl } from "./initialConfig.js";
 
-const sequelize = new Sequelize(dbUrl);
+const sequelize = new Sequelize(dbUrl, {
+  dialect: "postgres",
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false, // ✅ This allows RDS’s self-signed cert
+    },
+  },
+});
 
 // Async function to connect to the MongoDB database
 export const connectDB = async () => {
