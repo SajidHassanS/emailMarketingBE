@@ -13,8 +13,8 @@ const nodeEnv = process.env.NODE_ENV || "local";
 if (!process.env.DATABASE_URL)
   throw new Error("Missing DATABASE_URL in environment env file");
 
-if (!process.env.DATABASE_NAME)
-  throw new Error("Missing DATABASE_NAME in environment env file");
+// if (!process.env.DATABASE_NAME)
+//   throw new Error("Missing DATABASE_NAME in environment env file");
 if (!process.env.PORT) throw new Error("Missing PORT in environment env file");
 if (!process.env.JWT_SECRET_KEY)
   throw new Error("Missing JWT_SECRET_KEY in environment env file");
@@ -35,7 +35,7 @@ if (!process.env.EMAIL_PASS)
 // ==========================================================
 const port = process.env.PORT;
 
-const dbUrl = process.env.DATABASE_URL + process.env.DATABASE_NAME;
+const dbUrl = process.env.DATABASE_URL;
 const jwtSecret = process.env.JWT_SECRET_KEY;
 const emailPass = process.env.EMAIL_PASS;
 const domain =
