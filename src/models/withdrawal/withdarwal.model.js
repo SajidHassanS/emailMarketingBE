@@ -16,7 +16,8 @@ const Withdrawal = sequelize.define(
       allowNull: false,
       references: { model: "User", key: "uuid" },
     },
-    withdrawalMethodUuid: {  // Reference to WithdrawalMethod
+    withdrawalMethodUuid: {
+      // Reference to WithdrawalMethod
       type: DataTypes.UUID,
       allowNull: false,
       references: { model: "WithdrawalMethod", key: "uuid" },

@@ -7,6 +7,7 @@ import Notification from "./notification/notification.model.js";
 import Withdrawal from "./withdrawal/withdarwal.model.js";
 import WithdrawalMethod from "./withdrawal/withdrawalMethod.model.js";
 import SystemSetting from "./systemSetting/systemSetting.model.js";
+<<<<<<< HEAD
 import Bonus from "./withdrawal/bonus.model.js";
 import BonusWithdrawal from "./withdrawal/bonusWithdrawal.model.js";
 import Message from "./message/message.model.js";
@@ -15,6 +16,12 @@ import Admin from "./admin/admin.model.js";
 const models = {
   User,
   Admin,
+=======
+import Bonus from "./bonus/bonus.model.js";
+
+const models = {
+  User,
+>>>>>>> main
   Email,
   Password,
   Notification,
@@ -24,8 +31,11 @@ const models = {
   WithdrawalMethod,
   SystemSetting,
   Bonus,
+<<<<<<< HEAD
   BonusWithdrawal,
   Message,
+=======
+>>>>>>> main
 };
 
 export default models;
