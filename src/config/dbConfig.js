@@ -1,3 +1,6 @@
+import { Sequelize } from "sequelize";
+import chalk from "chalk";
+
 // You can move these to a config file later
 const dbName = "project3";
 const dbUser = "postgres";
