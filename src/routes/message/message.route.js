@@ -8,7 +8,7 @@ const router = express.Router();
 
 router
   .route("/admins-for-new-chat")
-  .get(verifyToken, messageCtrl.getAdminsForNewChat);
+  .get(verifyToken, messageCtrl.getAdminsForNewChat); // route to get admins to start new chat
 
 router.route("/admins").get(verifyToken, messageCtrl.getAdminsChattedWithUser);
 
