@@ -1,32 +1,19 @@
-import { Op, Sequelize, ValidationError } from "sequelize";
-import { bodyReqFields, queryReqFields } from "../../utils/requiredFields.js";
+import { Op } from "sequelize";
 import {
-  created,
   catchError,
   successOk,
   successOkWithData,
-  sequelizeValidationError,
   frontError,
   validationError,
   notFound,
 } from "../../utils/responses.js";
-import { convertToLowercase, getRelativePath } from "../../utils/utils.js";
+import { getRelativePath } from "../../utils/utils.js";
 import models from "../../models/models.js";
-import { validatePassword } from "../../utils/passwordUtils.js";
-import { uniqueNamesGenerator, names } from "unique-names-generator"; // Generates realistic names
-// import Email from "../../models/email/email.model.js";
-import { emailPass } from "../../config/initialConfig.js";
-import path, { extname, resolve } from "path";
-import { existsSync, mkdirSync, readdirSync } from "fs";
 const { Password, User, Email, DuplicateEmail } = models;
 import Tesseract from "tesseract.js";
-import { log } from "console";
 import { createNotification } from "../notification/notification.controller.js";
-<<<<<<< HEAD
 import Admin from "../../models/admin/admin.model.js";
 import { saveMessageToDB } from "../../utils/messageUtils.js";
-=======
->>>>>>> main
 
 // ========================= Upload Gmail Screenshot ============================
 
@@ -297,14 +284,11 @@ export async function uploadEmailScreenshot(req, res) {
       });
     }
 
-<<<<<<< HEAD
     // Get system admin for notification messages in chat
     let systemAdmin = await Admin.findOne({ where: { username: "systemadmin" } });
 
     if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
 
-=======
->>>>>>> main
     // Notify user
     if (existingEmailList.length > 0) {
       const title =
@@ -325,8 +309,6 @@ export async function uploadEmailScreenshot(req, res) {
         metadata: { duplicateEmails: existingEmailList },
       });
 
-<<<<<<< HEAD
-
 
       if (systemAdmin) {
         await saveMessageToDB({
@@ -342,8 +324,6 @@ export async function uploadEmailScreenshot(req, res) {
       }
 
 
-=======
->>>>>>> main
       return validationError(res, message);
     }
 
@@ -355,7 +335,6 @@ export async function uploadEmailScreenshot(req, res) {
       type: "success",
     });
 
-<<<<<<< HEAD
     if (systemAdmin) {
       await saveMessageToDB({
         senderUuid: systemAdmin.uuid,
@@ -369,8 +348,6 @@ export async function uploadEmailScreenshot(req, res) {
       console.warn("⚠️ No admin found. Skipping system notification.");
     }
 
-=======
->>>>>>> main
     return successOk(
       res,
       "Email screenshot uploaded & processed successfully."
