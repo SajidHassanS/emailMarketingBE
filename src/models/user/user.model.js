@@ -55,7 +55,10 @@ const User = sequelize.define(
       references: { model: "Password", key: "uuid" },
       allowNull: true, // Initially null if no passwords exist
     },
+<<<<<<< HEAD
+=======
 
+>>>>>>> main
     userTitle: {
       type: DataTypes.STRING,
       allowNull: true,
