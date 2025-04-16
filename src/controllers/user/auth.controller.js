@@ -42,7 +42,7 @@ import jwt from "jsonwebtoken";
 // import Password from "../../models/password/password.model.js";
 import models from "../../models/models.js";
 import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
-import Bonus from "../../models/bonus/bonus.model.js";
+import Bonus from "../../models/withdrawal/bonus.model.js";
 import { createNotification } from "../notification/notification.controller.js";
 const { User, BlacklistToken, Password } = models;
 

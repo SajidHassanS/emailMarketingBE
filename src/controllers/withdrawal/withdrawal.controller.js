@@ -11,7 +11,7 @@ import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
 import { bodyReqFields } from "../../utils/requiredFields.js";
 const { Email, Withdrawal, WithdrawalMethod, Bonus } = models;
 import { createNotification } from "../notification/notification.controller.js";
-import BonusWithdrawal from "../../models/bonus/bonusWithdrawal.model.js";
+import BonusWithdrawal from "../../models/withdrawal/bonusWithdrawal.model.js";
 
 // Get Available Balance for the User
 export async function getAvailableBalance(req, res) {
