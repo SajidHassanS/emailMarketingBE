@@ -41,15 +41,10 @@ import jwt from "jsonwebtoken";
 // import BlacklistToken from "../../models/user/blackListToken.model.js";
 // import Password from "../../models/password/password.model.js";
 import models from "../../models/models.js";
-<<<<<<< Updated upstream
-import { createNotification } from "../notification/notification.controller.js";
-const { User, BlacklistToken, Password, Bonus, SystemSetting } = models
-=======
 import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
 import Bonus from "../../models/bonus/bonus.model.js";
 import { createNotification } from "../notification/notification.controller.js";
 const { User, BlacklistToken, Password } = models;
->>>>>>> Stashed changes
 
 // ========================= Register User ============================
 

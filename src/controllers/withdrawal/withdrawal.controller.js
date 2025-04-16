@@ -1,11 +1,5 @@
 import { Op } from "sequelize";
 import models from "../../models/models.js";
-<<<<<<< Updated upstream
-import { catchError, frontError, successOkWithData, validationError } from "../../utils/responses.js";
-import { bodyReqFields } from "../../utils/requiredFields.js";
-const { Email, Withdrawal, WithdrawalMethod, Bonus, BonusWithdrawal, SystemSetting } = models;
-import { createNotification } from "../notification/notification.controller.js";
-=======
 import User from "../../models/user/user.model.js";
 import {
   catchError,
@@ -18,7 +12,6 @@ import { bodyReqFields } from "../../utils/requiredFields.js";
 const { Email, Withdrawal, WithdrawalMethod, Bonus } = models;
 import { createNotification } from "../notification/notification.controller.js";
 import BonusWithdrawal from "../../models/bonus/bonusWithdrawal.model.js";
->>>>>>> Stashed changes
 
 // Get Available Balance for the User
 export async function getAvailableBalance(req, res) {
@@ -75,8 +68,6 @@ export async function requestWithdrawal(req, res) {
       methodToUse = providedMethod;
     }
 
-<<<<<<< Updated upstream
-=======
     // Check if the user was referred (i.e., has a referCode)
     // const user = await User.findOne({ where: { uuid: userUuid } });
 
@@ -108,7 +99,6 @@ export async function requestWithdrawal(req, res) {
     //   }
     // }
 
->>>>>>> Stashed changes
     // Get all eligible emails for withdrawal
     const availableEmails = await Email.findAll({
       where: { userUuid, status: "good", isWithdrawn: false },
@@ -244,38 +234,7 @@ export async function requestBonusWithdrawal(req, res) {
   const reqBodyFields = bodyReqFields(req, res, ["bonusType"]);
   if (reqBodyFields.error) return reqBodyFields.response;
 
-<<<<<<< Updated upstream
-  const { bonusType, method } = req.body; // Optional: methodType to override default
-
-  // Fetch user's default withdrawal method
-  const defaultMethod = await WithdrawalMethod.findOne({
-    where: { userUuid, isDefault: true },
-  });
-
-  if (!defaultMethod) {
-    return frontError(
-      res,
-      "No default withdrawal method found. Please add one."
-    );
-  }
-
-  let methodToUse = defaultMethod;
-
-  // If user provided a methodType, use it instead
-  if (method) {
-    const providedMethod = await WithdrawalMethod.findOne({
-      where: { userUuid, methodType: method },
-    });
-
-    if (!providedMethod) {
-      return frontError(res, "Specified withdrawal method not found.");
-    }
-
-    methodToUse = providedMethod;
-  }
-=======
   const { bonusType } = req.body;
->>>>>>> Stashed changes
 
   // Validate bonusType
   if (!["signup", "referral"].includes(bonusType)) {
@@ -313,32 +272,11 @@ export async function requestBonusWithdrawal(req, res) {
       );
     }
 
-<<<<<<< Updated upstream
-    // ✅ Check if a withdrawal request for the same bonus already exists
-    const existingRequest = await BonusWithdrawal.findOne({
-      where: {
-        bonusUuid: bonus.uuid,
-        userUuid: userUuid,
-        status: 'pending', // Optionally check only 'pending' requests
-      },
-    });
-
-    if (existingRequest) {
-      return validationError(res, `You have already created a withdrawal request for this ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus.`);
-    }
-
-=======
->>>>>>> Stashed changes
     // ✅ Create a new withdrawal request
     const withdrawalRequest = await BonusWithdrawal.create({
       bonusUuid: bonus.uuid,
       userUuid: userUuid,
-<<<<<<< Updated upstream
-      withdrawalMethodUuid: methodToUse.uuid,
-      status: 'pending', // Set status as pending initially
-=======
       status: "pending", // Set status as pending initially
->>>>>>> Stashed changes
     });
 
     // ✅ Notify the user about the successful bonus withdrawal
