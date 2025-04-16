@@ -1,7 +1,10 @@
 // import crypto from "crypto";
 import { Sequelize } from "sequelize";
+// import BlacklistToken from "../../models/user/blackListToken.model.js";
+// import jwt from "jsonwebtoken";
+// import Student from "../../models/user/user.model.js"; // Updated to reflect the new model
 import { bodyReqFields } from "../../utils/requiredFields.js";
-import { convertToLowercase, validateCountryCode, validatePhone, validateUsername } from "../../utils/utils.js";
+import { convertToLowercase, validateCountryCode, validateEmail, validatePhone, validateUsername } from "../../utils/utils.js";
 import {
   comparePassword,
   hashPassword,
@@ -11,9 +14,12 @@ import {
   generateAccessToken,
   generateRefreshToken,
   verifyRefreshToken,
+  // verifyRefreshToken,
 } from "../../utils/jwtTokenGenerator.js";
+// import { sendOTPEmail } from "../../utils/sendEmailUtils.js";
 import {
   created,
+  frontError,
   catchError,
   validationError,
   successOk,
@@ -21,9 +27,13 @@ import {
   UnauthorizedError,
   sequelizeValidationError,
   forbiddenError,
+  notFound,
 } from "../../utils/responses.js";
+// import User from "../../models/user/user.model.js";
 import { jwtSecret } from "../../config/initialConfig.js";
 import jwt from 'jsonwebtoken';
+// import BlacklistToken from "../../models/user/blackListToken.model.js";
+// import Password from "../../models/password/password.model.js";
 import models from "../../models/models.js";
 import { createNotification } from "../notification/notification.controller.js";
 const { User, BlacklistToken, Password, Bonus, SystemSetting } = models

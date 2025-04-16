@@ -14,6 +14,7 @@ import Admin from "./admin/admin.model.js";
 
 const models = {
   User,
+  Admin,
   Email,
   Password,
   Notification,
@@ -25,7 +26,6 @@ const models = {
   Bonus,
   BonusWithdrawal,
   Message,
-  Admin,
 };
 
 export default models;

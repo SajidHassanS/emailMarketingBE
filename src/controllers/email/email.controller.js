@@ -1,16 +1,26 @@
-import { Op } from "sequelize";
+import { Op, Sequelize, ValidationError } from "sequelize";
+import { bodyReqFields, queryReqFields } from "../../utils/requiredFields.js";
 import {
+  created,
   catchError,
   successOk,
   successOkWithData,
+  sequelizeValidationError,
   frontError,
   validationError,
   notFound,
 } from "../../utils/responses.js";
-import { getRelativePath } from "../../utils/utils.js";
+import { convertToLowercase, getRelativePath } from "../../utils/utils.js";
 import models from "../../models/models.js";
+import { validatePassword } from "../../utils/passwordUtils.js";
+import { uniqueNamesGenerator, names } from "unique-names-generator"; // Generates realistic names
+// import Email from "../../models/email/email.model.js";
+import { emailPass } from "../../config/initialConfig.js";
+import path, { extname, resolve } from "path";
+import { existsSync, mkdirSync, readdirSync } from "fs";
 const { Password, User, Email, DuplicateEmail } = models;
 import Tesseract from "tesseract.js";
+import { log } from "console";
 import { createNotification } from "../notification/notification.controller.js";
 import Admin from "../../models/admin/admin.model.js";
 import { saveMessageToDB } from "../../utils/messageUtils.js";
@@ -308,6 +318,7 @@ export async function uploadEmailScreenshot(req, res) {
         type: "duplicate_email",
         metadata: { duplicateEmails: existingEmailList },
       });
+
 
 
       if (systemAdmin) {
