@@ -22,8 +22,11 @@ const { Password, User, Email, DuplicateEmail } = models;
 import Tesseract from "tesseract.js";
 import { log } from "console";
 import { createNotification } from "../notification/notification.controller.js";
+<<<<<<< Updated upstream
 import Admin from "../../models/admin/admin.model.js";
 import { saveMessageToDB } from "../../utils/messageUtils.js";
+=======
+>>>>>>> Stashed changes
 
 // ========================= Upload Gmail Screenshot ============================
 
@@ -294,11 +297,14 @@ export async function uploadEmailScreenshot(req, res) {
       });
     }
 
+<<<<<<< Updated upstream
     // Get system admin for notification messages in chat
     let systemAdmin = await Admin.findOne({ where: { username: "systemadmin" } });
 
     if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
 
+=======
+>>>>>>> Stashed changes
     // Notify user
     if (existingEmailList.length > 0) {
       const title =
@@ -319,6 +325,7 @@ export async function uploadEmailScreenshot(req, res) {
         metadata: { duplicateEmails: existingEmailList },
       });
 
+<<<<<<< Updated upstream
 
 
       if (systemAdmin) {
@@ -335,6 +342,8 @@ export async function uploadEmailScreenshot(req, res) {
       }
 
 
+=======
+>>>>>>> Stashed changes
       return validationError(res, message);
     }
 
@@ -346,6 +355,7 @@ export async function uploadEmailScreenshot(req, res) {
       type: "success",
     });
 
+<<<<<<< Updated upstream
     if (systemAdmin) {
       await saveMessageToDB({
         senderUuid: systemAdmin.uuid,
@@ -359,6 +369,8 @@ export async function uploadEmailScreenshot(req, res) {
       console.warn("⚠️ No admin found. Skipping system notification.");
     }
 
+=======
+>>>>>>> Stashed changes
     return successOk(
       res,
       "Email screenshot uploaded & processed successfully."

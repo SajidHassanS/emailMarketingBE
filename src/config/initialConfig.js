@@ -13,8 +13,13 @@ const nodeEnv = process.env.NODE_ENV || "local";
 if (!process.env.DATABASE_URL)
   throw new Error("Missing DATABASE_URL in environment env file");
 
+<<<<<<< Updated upstream
 if (!process.env.DATABASE_NAME)
   throw new Error("Missing DATABASE_NAME in environment env file");
+=======
+// if (!process.env.DATABASE_NAME)
+//   throw new Error("Missing DATABASE_NAME in environment env file");
+>>>>>>> Stashed changes
 if (!process.env.PORT) throw new Error("Missing PORT in environment env file");
 if (!process.env.JWT_SECRET_KEY)
   throw new Error("Missing JWT_SECRET_KEY in environment env file");

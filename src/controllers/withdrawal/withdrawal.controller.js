@@ -1,9 +1,24 @@
 import { Op } from "sequelize";
 import models from "../../models/models.js";
+<<<<<<< Updated upstream
 import { catchError, frontError, successOkWithData, validationError } from "../../utils/responses.js";
 import { bodyReqFields } from "../../utils/requiredFields.js";
 const { Email, Withdrawal, WithdrawalMethod, Bonus, BonusWithdrawal, SystemSetting } = models;
 import { createNotification } from "../notification/notification.controller.js";
+=======
+import User from "../../models/user/user.model.js";
+import {
+  catchError,
+  frontError,
+  successOkWithData,
+  validationError,
+} from "../../utils/responses.js";
+import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
+import { bodyReqFields } from "../../utils/requiredFields.js";
+const { Email, Withdrawal, WithdrawalMethod, Bonus } = models;
+import { createNotification } from "../notification/notification.controller.js";
+import BonusWithdrawal from "../../models/bonus/bonusWithdrawal.model.js";
+>>>>>>> Stashed changes
 
 // Get Available Balance for the User
 export async function getAvailableBalance(req, res) {
@@ -60,19 +75,58 @@ export async function requestWithdrawal(req, res) {
       methodToUse = providedMethod;
     }
 
+<<<<<<< Updated upstream
+=======
+    // Check if the user was referred (i.e., has a referCode)
+    // const user = await User.findOne({ where: { uuid: userUuid } });
+
+    // if (user && user.referCode) {
+    //   // Find the referrer using the referCode (username)
+    //   const referrer = await User.findOne({ where: { username: user.referCode } });
+
+    //   if (referrer) {
+    //     // Get the referrer's total withdrawn amount
+    //     const referrerWithdrawals = await Withdrawal.sum("amount", {
+    //       where: {
+    //         userUuid: referrer.uuid,
+    //         status: "approved", // Only consider approved withdrawals
+    //       },
+    //     });
+
+    //     // Fetch the referral withdrawal threshold from system settings
+    //     const settings = await SystemSetting.findOne({ where: { key: 'referral_withdrawal_threshold' } });
+
+    //     // Default to 100 if the setting doesn't exist
+    //     const referralThreshold = settings ? settings.value : 100;
+
+    //     // Check if the referrer has withdrawn enough (dynamic threshold)
+    //     if (referrerWithdrawals < referralThreshold) {
+    //       return frontError(res, `You cannot withdraw until your referrer has withdrawn ${referralThreshold} PKR.`);
+    //     }
+    //   } else {
+    //     return frontError(res, "Referrer not found.");
+    //   }
+    // }
+
+>>>>>>> Stashed changes
     // Get all eligible emails for withdrawal
     const availableEmails = await Email.findAll({
       where: { userUuid, status: "good", isWithdrawn: false },
     });
 
-    const totalAmount = availableEmails.reduce((sum, email) => sum + email.amount, 0);
+    const totalAmount = availableEmails.reduce(
+      (sum, email) => sum + email.amount,
+      0
+    );
 
     if (totalAmount === 0) {
       return frontError(res, "No withdrawable amount found.");
     }
 
     //  Fetch the referral withdrawal threshold from system settings
-    const settings = await SystemSetting.findOne({ where: { key: 'referral_withdrawal_threshold' } });
+    const settings = await SystemSetting.findOne({
+      where: { key: "referral_withdrawal_threshold" },
+    });
 
     // Default to 100 if the setting doesn't exist
     const referralThreshold = settings ? settings.value : 100;
@@ -111,8 +165,7 @@ export async function getMyWithdrawals(req, res) {
     const userUuid = req.userUid;
     const { status, startDate, endDate } = req.query;
 
-    console.log("===== req.query ===== : ", req.query)
-
+    console.log("===== req.query ===== : ", req.query);
 
     // Build the filters
     let whereConditions = { userUuid };
@@ -124,23 +177,23 @@ export async function getMyWithdrawals(req, res) {
 
     // Filter by date range if startDate or endDate are provided
     if (startDate || endDate) {
-      whereConditions.createdAt = {}
+      whereConditions.createdAt = {};
       if (startDate) {
         // Convert startDate to Date and reset time to midnight (start of day)
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);  // Reset time to 00:00:00
+        start.setHours(0, 0, 0, 0); // Reset time to 00:00:00
         whereConditions.createdAt[Op.gte] = start;
       }
 
       if (endDate) {
         // Convert endDate to Date and reset time to 23:59:59
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);  // Set time to 23:59:59
+        end.setHours(23, 59, 59, 999); // Set time to 23:59:59
         whereConditions.createdAt[Op.lte] = end;
-      };
+      }
     }
 
-    console.log("===== whereConditions ===== : ", whereConditions)
+    console.log("===== whereConditions ===== : ", whereConditions);
     const withdrawals = await Withdrawal.findAll({
       where: whereConditions,
       include: [
@@ -148,7 +201,7 @@ export async function getMyWithdrawals(req, res) {
           model: WithdrawalMethod,
           as: "withdrawalMethod",
           attributes: ["methodType", "accountNumber"],
-        }
+        },
       ],
       order: [["createdAt", "DESC"]],
     });
@@ -171,8 +224,8 @@ export async function getBonus(req, res) {
     });
 
     // Extract the latest bonus of each type (if exists)
-    const signupBonus = bonuses.find(b => b.type === "signup");
-    const referralBonus = bonuses.find(b => b.type === "referral");
+    const signupBonus = bonuses.find((b) => b.type === "signup");
+    const referralBonus = bonuses.find((b) => b.type === "referral");
 
     return successOkWithData(res, "Bonus amounts fetched successfully.", {
       signup: signupBonus?.amount || 0,
@@ -184,16 +237,14 @@ export async function getBonus(req, res) {
   }
 }
 
-
 export async function requestBonusWithdrawal(req, res) {
   const userUuid = req.userUid;
 
   // ✅ Check if required fields are provided
-  const reqBodyFields = bodyReqFields(req, res, [
-    "bonusType"
-  ]);
+  const reqBodyFields = bodyReqFields(req, res, ["bonusType"]);
   if (reqBodyFields.error) return reqBodyFields.response;
 
+<<<<<<< Updated upstream
   const { bonusType, method } = req.body; // Optional: methodType to override default
 
   // Fetch user's default withdrawal method
@@ -222,10 +273,16 @@ export async function requestBonusWithdrawal(req, res) {
 
     methodToUse = providedMethod;
   }
+=======
+  const { bonusType } = req.body;
+>>>>>>> Stashed changes
 
   // Validate bonusType
-  if (!['signup', 'referral'].includes(bonusType)) {
-    return frontError(res, "Invalid bonus type. It must be 'signup' or 'referral'.");
+  if (!["signup", "referral"].includes(bonusType)) {
+    return frontError(
+      res,
+      "Invalid bonus type. It must be 'signup' or 'referral'."
+    );
   }
 
   try {
@@ -238,14 +295,25 @@ export async function requestBonusWithdrawal(req, res) {
     });
 
     if (!bonus) {
-      return validationError(res, `No ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus available.`);
+      return validationError(
+        res,
+        `No ${
+          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+        } bonus available.`
+      );
     }
 
     // ✅ Check if the bonus is unlocked after the first withdrawal
     if (!bonus.unlockedAfterFirstWithdrawal) {
-      return validationError(res, `Your ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus is locked until you make your first withdrawal.`);
+      return validationError(
+        res,
+        `Your ${
+          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+        } bonus is locked until you make your first withdrawal.`
+      );
     }
 
+<<<<<<< Updated upstream
     // ✅ Check if a withdrawal request for the same bonus already exists
     const existingRequest = await BonusWithdrawal.findOne({
       where: {
@@ -259,30 +327,45 @@ export async function requestBonusWithdrawal(req, res) {
       return validationError(res, `You have already created a withdrawal request for this ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus.`);
     }
 
+=======
+>>>>>>> Stashed changes
     // ✅ Create a new withdrawal request
     const withdrawalRequest = await BonusWithdrawal.create({
       bonusUuid: bonus.uuid,
       userUuid: userUuid,
+<<<<<<< Updated upstream
       withdrawalMethodUuid: methodToUse.uuid,
       status: 'pending', // Set status as pending initially
+=======
+      status: "pending", // Set status as pending initially
+>>>>>>> Stashed changes
     });
 
     // ✅ Notify the user about the successful bonus withdrawal
     await createNotification({
       userUuid: userUuid,
-      title: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} Bonus Withdrawn`,
-      message: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus has been successfully withdrawn.`,
+      title: `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      } Bonus Withdrawn`,
+      message: `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      } bonus has been successfully withdrawn.`,
       type: "success",
     });
 
     // ✅ Respond with success message and bonus amount
-    return successOkWithData(res, `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)} bonus withdrawal request created successfully.`, { bonusAmount: bonus.amount, withdrawalUuid: withdrawalRequest.uuid });
+    return successOkWithData(
+      res,
+      `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      } bonus withdrawal request created successfully.`,
+      { bonusAmount: bonus.amount, withdrawalUuid: withdrawalRequest.uuid }
+    );
   } catch (error) {
     console.error("Error processing bonus withdrawal:", error);
     return frontError(res, "Something went wrong. Please try again later.");
   }
 }
-
 
 // API to get Bonus Withdrawals
 export async function getMyBonusWithdrawals(req, res) {
@@ -294,29 +377,28 @@ export async function getMyBonusWithdrawals(req, res) {
     // Build the query filter object
     const queryFilter = { userUuid };
 
-
     // Filter by status if provided
-    if (status && ['pending', 'approved', 'withdrawn'].includes(status)) {
+    if (status && ["pending", "approved", "withdrawn"].includes(status)) {
       queryFilter.status = status;
     }
 
     // Filter by date range (start and end date) if provided
     // Filter by date range if startDate or endDate are provided
     if (startDate || endDate) {
-      queryFilter.createdAt = {}
+      queryFilter.createdAt = {};
       if (startDate) {
         // Convert startDate to Date and reset time to midnight (start of day)
         const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);  // Reset time to 00:00:00
+        start.setHours(0, 0, 0, 0); // Reset time to 00:00:00
         queryFilter.createdAt[Op.gte] = start;
       }
 
       if (endDate) {
         // Convert endDate to Date and reset time to 23:59:59
         const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);  // Set time to 23:59:59
+        end.setHours(23, 59, 59, 999); // Set time to 23:59:59
         queryFilter.createdAt[Op.lte] = end;
-      };
+      }
     }
 
     // Fetch Bonus Withdrawals based on the query filter
@@ -325,19 +407,26 @@ export async function getMyBonusWithdrawals(req, res) {
       include: [
         {
           model: Bonus, // Assuming you're including Bonus details
-          as: 'bonus',
-          attributes: ['uuid', 'amount', 'type'], // Adjust attributes as per need
-        }
+          as: "bonus",
+          attributes: ["uuid", "amount", "type"], // Adjust attributes as per need
+        },
       ],
-      order: [['createdAt', 'DESC']], // Ordering by creation date (desc)
+      order: [["createdAt", "DESC"]], // Ordering by creation date (desc)
     });
 
     if (!bonusWithdrawals || bonusWithdrawals.length === 0) {
-      return frontError(res, "No bonus withdrawals found for the given criteria.");
+      return frontError(
+        res,
+        "No bonus withdrawals found for the given criteria."
+      );
     }
 
     // Return success response with the retrieved data
-    return successOkWithData(res, "Bonus withdrawals retrieved successfully.", bonusWithdrawals);
+    return successOkWithData(
+      res,
+      "Bonus withdrawals retrieved successfully.",
+      bonusWithdrawals
+    );
   } catch (error) {
     console.error("Error fetching bonus withdrawals:", error);
     return frontError(res, "Something went wrong. Please try again later.");
