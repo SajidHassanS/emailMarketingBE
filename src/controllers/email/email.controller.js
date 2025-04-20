@@ -295,7 +295,9 @@ export async function uploadEmailScreenshot(req, res) {
     }
 
     // Get system admin for notification messages in chat
-    let systemAdmin = await Admin.findOne({ where: { username: "systemadmin" } });
+    let systemAdmin = await Admin.findOne({
+      where: { username: "systemadmin" },
+    });
 
     if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
 
@@ -319,8 +321,6 @@ export async function uploadEmailScreenshot(req, res) {
         metadata: { duplicateEmails: existingEmailList },
       });
 
-
-
       if (systemAdmin) {
         await saveMessageToDB({
           senderUuid: systemAdmin.uuid,
@@ -333,7 +333,6 @@ export async function uploadEmailScreenshot(req, res) {
       } else {
         console.warn("⚠️ No admin found. Skipping system notification.");
       }
-
 
       return validationError(res, message);
     }
@@ -352,7 +351,7 @@ export async function uploadEmailScreenshot(req, res) {
         senderType: "admin",
         receiverUuid: userUid,
         receiverType: "user",
-        content: message,
+        content: `New Email(s) Uploaded ----- ${newEmails.length} new email(s) have been successfully uploaded and processed.`,
         isNotification: true,
       });
     } else {

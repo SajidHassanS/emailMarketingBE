@@ -11,9 +11,15 @@ import {
   successOk,
   successOkWithData,
   UnauthorizedError,
+  frontError,
+  created,
+  createdWithData,
 } from "../../utils/responses.js";
 import User from "../../models/user/user.model.js";
 import Password from "../../models/password/password.model.js";
+import Phone from "../../models/user/phone.model.js";
+import { bodyReqFields } from "../../utils/requiredFields.js";
+import { Op } from "sequelize";
 
 // ========================= Get Profile ============================
 
@@ -148,5 +154,112 @@ export async function updateProfile(req, res) {
     return successOk(res, "Profile updated successfully.");
   } catch (error) {
     return catchError(res, error);
+  }
+}
+
+// ========================= Get Other Phones ============================
+
+// Get other phones for a user
+export async function getPhones(req, res) {
+  try {
+    const userUid = req.userUid;
+
+    const phones = await Phone.findAll({
+      where: { userUuid: userUid },
+      order: [["createdAt", "DESC"]],
+    });
+
+    return successOkWithData(res, "Phones fetched successfully.", phones);
+  } catch (error) {
+    console.error("Get User Phones Error:", error);
+    return catchError(res, error);
+  }
+}
+
+// ========================= Bulk Add Phones ============================
+
+// Add multiple phone numbers for a user
+export async function bulkAddPhones(req, res) {
+  try {
+    const userUid = req.userUid;
+
+    const reqBodyFields = bodyReqFields(req, res, ["phones"]);
+    if (reqBodyFields.error) return reqBodyFields.response;
+
+    let { phones } = req.body; // Expecting an array of phones
+    if (!Array.isArray(phones) || phones.length === 0) {
+      return validationError(res, "Phones must be a non-empty array.");
+    }
+
+    const user = await User.findByPk(userUid);
+    if (!user) return frontError(res, "Invalid uuid.");
+
+    // Extract all countryCode+phone combinations
+    const fullNumbersMap = phones.map((p) => ({
+      full: `${p.countryCode}${p.phone}`,
+      countryCode: p.countryCode,
+      phone: p.phone,
+    }));
+
+    // Query existing numbers
+    const existingPhones = await Phone.findAll({
+      where: {
+        [Op.or]: fullNumbersMap.map((p) => ({
+          countryCode: p.countryCode,
+          phone: p.phone,
+        })),
+      },
+    });
+
+    const existingFullNumbers = existingPhones.map(
+      (p) => `${p.countryCode}${p.phone}`
+    );
+
+    // Validate and collect valid phones
+    const validPhones = [];
+    const invalidPhones = [];
+    const phonesToInsert = [];
+
+    for (const p of phones) {
+      if (!p.countryCode || !p.phone)
+        return validationError(res, "Both phone and countryCode are required.");
+
+      const fullNumber = `${p.countryCode}${p.phone}`;
+      if (existingFullNumbers.includes(fullNumber)) {
+        invalidPhones.push(`${fullNumber} already exists.`);
+        continue;
+      }
+
+      const error = validatePhone(p.phone);
+      if (error) {
+        invalidPhones.push(`${fullNumber} is invalid: ${error}.`);
+      } else {
+        validPhones.push(fullNumber);
+        phonesToInsert.push({
+          userUuid: userUid,
+          countryCode: p.countryCode,
+          phone: p.phone,
+        });
+      }
+    }
+
+    if (phonesToInsert.length === 0) {
+      return validationError(
+        res,
+        `No valid phone numbers found. Invalid entries: ${invalidPhones.join(
+          " ----- "
+        )}`
+      );
+    }
+
+    await Phone.bulkCreate(phonesToInsert);
+
+    return createdWithData(res, "Phones added successfully.", {
+      added: validPhones,
+      invalid: invalidPhones.length > 0 ? invalidPhones : undefined,
+    });
+  } catch (error) {
+    console.error("Bulk Add Phones Error:", error);
+    return res.status(500).json({ message: "Internal server error." });
   }
 }
