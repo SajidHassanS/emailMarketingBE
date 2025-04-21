@@ -8,8 +8,18 @@ const router = express.Router();
 
 // Profile routes
 router
-    .route("/")
-    .get(verifyToken, profileCtrl.getProfile)
-    .patch(verifyToken, setProfileImgPath, upload.single("profileImg"), profileCtrl.updateProfile);
+  .route("/")
+  .get(verifyToken, profileCtrl.getProfile)
+  .patch(
+    verifyToken,
+    setProfileImgPath,
+    upload.single("profileImg"),
+    profileCtrl.updateProfile
+  );
+
+router
+  .route("/phone")
+  .get(verifyToken, profileCtrl.getPhones)
+  .post(verifyToken, profileCtrl.bulkAddPhones);
 
 export default router;

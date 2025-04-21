@@ -4,13 +4,7 @@ import { Sequelize } from "sequelize";
 // import jwt from "jsonwebtoken";
 // import Student from "../../models/user/user.model.js"; // Updated to reflect the new model
 import { bodyReqFields } from "../../utils/requiredFields.js";
-import {
-  convertToLowercase,
-  validateCountryCode,
-  validateEmail,
-  validatePhone,
-  validateUsername,
-} from "../../utils/utils.js";
+import { convertToLowercase, validateCountryCode, validateEmail, validatePhone, validateUsername } from "../../utils/utils.js";
 import {
   comparePassword,
   hashPassword,
@@ -37,14 +31,12 @@ import {
 } from "../../utils/responses.js";
 // import User from "../../models/user/user.model.js";
 import { jwtSecret } from "../../config/initialConfig.js";
-import jwt from "jsonwebtoken";
+import jwt from 'jsonwebtoken';
 // import BlacklistToken from "../../models/user/blackListToken.model.js";
 // import Password from "../../models/password/password.model.js";
 import models from "../../models/models.js";
-import SystemSetting from "../../models/systemSetting/systemSetting.model.js";
-import Bonus from "../../models/withdrawal/bonus.model.js";
 import { createNotification } from "../notification/notification.controller.js";
-const { User, BlacklistToken, Password } = models;
+const { User, BlacklistToken, Password, Bonus, SystemSetting } = models
 
 // ========================= Register User ============================
 
@@ -61,24 +53,18 @@ export async function registerUser(req, res) {
     if (reqBodyFields.error) return reqBodyFields.response;
 
     // ✅ Convert relevant fields to lowercase (excluding sensitive ones)
-    const excludedFields = [
-      "countryCode",
-      "phone",
-      "password",
-      "confirmPassword",
-    ];
+    const excludedFields = ['countryCode', 'phone', 'password', 'confirmPassword'];
     const requiredData = convertToLowercase(req.body, excludedFields);
     let { countryCode, phone, password, confirmPassword } = requiredData;
-    let { username, referCode } = req.body; // use this referCode is case sensitive
+    let { username, referCode } = req.body // use this referCode is case sensitive
 
     // ✅ Validate User Name
-    const usernameError = validateUsername(username);
+    const usernameError = validateUsername(username)
     if (usernameError) return validationError(res, usernameError, "username");
 
     // ✅ Validate Country Code
     const countryCodeError = validateCountryCode(countryCode);
-    if (countryCodeError)
-      return validationError(res, countryCodeError, "countryCode");
+    if (countryCodeError) return validationError(res, countryCodeError, "countryCode");
 
     // ✅ Validate Phone Number
     const phoneError = validatePhone(phone);
@@ -86,8 +72,7 @@ export async function registerUser(req, res) {
 
     // ✅ Check if the Email Already Exists
     const existingUser = await User.findOne({ where: { phone } });
-    if (existingUser)
-      return validationError(res, "This phone is already registered.", "phone");
+    if (existingUser) return validationError(res, "This phone is already registered.", "phone");
 
     // ✅ Check if Passwords Match (Explicitly Checking Here)
     if (password !== confirmPassword) {
@@ -102,10 +87,7 @@ export async function registerUser(req, res) {
     const hashedPassword = await hashPassword(password);
 
     // Get active passwords
-    const passwords = await Password.findAll({
-      where: { active: true },
-      order: [["uuid", "ASC"]],
-    });
+    const passwords = await Password.findAll({ where: { active: true }, order: [['uuid', 'ASC']] });
 
     // Count existing users to determine which password to assign
     const userCount = await User.count();
@@ -117,17 +99,16 @@ export async function registerUser(req, res) {
       referUser = await User.findOne({ where: { username: referCode } });
     }
 
-    let userData = {};
+    let userData = {}
     // ✅ Prepare Data for Insertion
-    userData.username = username;
-    userData.phone = phone;
-    userData.countryCode = countryCode;
-    userData.password = hashedPassword;
-    if (referUser) userData.referCode = referCode; // Assign referCode only if referCode is valid
+    userData.username = username
+    userData.phone = phone
+    userData.countryCode = countryCode
+    userData.password = hashedPassword
+    if (referUser) userData.referCode = referCode // Assign referCode only if referCode is valid
     // userData.bonus = 0 // get bonus set by admin | not needed any more
-    userData.active = false;
-    if (passwords.length !== 0)
-      userData.passwordUuid = passwords[passwordIndex].uuid; // assign password for email generation
+    userData.active = false
+    if (passwords.length !== 0) userData.passwordUuid = passwords[passwordIndex].uuid // assign password for email generation
 
     console.log("===== userData ===== : ", userData);
 
@@ -135,36 +116,31 @@ export async function registerUser(req, res) {
     const newUser = await User.create(userData);
 
     // ✅ Add Signup Bonus
-    const signupBonus = await SystemSetting.findOne({
-      where: { key: "default_signup_bonus" },
-    });
+    const signupBonus = await SystemSetting.findOne({ where: { key: "default_signup_bonus" } });
     if (signupBonus) {
       await Bonus.create({
         userUuid: newUser.uuid,
-        type: "signup",
+        type: 'signup',
         amount: parseInt(signupBonus.value),
-        status: "pending",
+        status: 'pending',
       });
     }
 
     // ✅ Add Referral Bonus (to the referring user, if applicable)
-    let referralBonusStatus = ""; // To store message about referral bonus status
+    let referralBonusStatus = ''; // To store message about referral bonus status
     if (referCode && referUser) {
-      const referralBonus = await SystemSetting.findOne({
-        where: { key: "default_referral_bonus" },
-      });
+      const referralBonus = await SystemSetting.findOne({ where: { key: "default_referral_bonus" } });
       if (referralBonus) {
         await Bonus.create({
           userUuid: referUser.uuid,
-          type: "referral",
+          type: 'referral',
           amount: parseInt(referralBonus.value),
-          status: "pending",
-          refereeUuid: newUser.uuid, // Storing the refereeUuid (new user who used the referral code)
+          status: 'pending',
+          refereeUuid: newUser.uuid,  // Storing the refereeUuid (new user who used the referral code)
         });
-        referralBonusStatus = "Referral bonus awarded successfully.";
+        referralBonusStatus = 'Referral bonus awarded successfully.';
       } else {
-        referralBonusStatus =
-          "No referral bonus awarded. Please contact admin for more details.";
+        referralBonusStatus = 'No referral bonus awarded. Please contact admin for more details.';
       }
     }
 
@@ -172,19 +148,17 @@ export async function registerUser(req, res) {
     const notificationMessage = `Welcome ${newUser.username}! Your account has been successfully created. ${referralBonusStatus}`;
     await createNotification({
       userUuid: newUser.uuid,
-      title: "Welcome to the Platform",
+      title: 'Welcome to the Platform',
       message: notificationMessage,
       type: "info",
     });
+
 
     // Send response with appropriate messages
     if (referCode && referUser) {
       return created(res, "User profile created successfully.");
     } else if (referCode && !referUser) {
-      return created(
-        res,
-        "User profile created successfully, but the provided referCode is invalid."
-      );
+      return created(res, "User profile created successfully, but the provided referCode is invalid.");
     } else {
       return created(res, "User profile created successfully.");
     }
@@ -215,10 +189,7 @@ export async function loginUser(req, res) {
 
     // Check if the account is inactive
     if (!user.active) {
-      return validationError(
-        res,
-        "Your account is not approved yet. Please contact the admin."
-      );
+      return validationError(res, "Your account is not approved yet. Please contact the admin.");
     }
 
     // Compare passwords
@@ -230,10 +201,7 @@ export async function loginUser(req, res) {
     const refreshToken = generateRefreshToken(user);
 
     // If passwords match, return success
-    return successOkWithData(res, "Login successful", {
-      accessToken,
-      refreshToken,
-    });
+    return successOkWithData(res, "Login successful", { accessToken, refreshToken });
   } catch (error) {
     return catchError(res, error);
   }
@@ -254,32 +222,22 @@ export async function regenerateAccessToken(req, res) {
     if (!user) return validationError(res, "Invalid token.");
 
     if (invalid) return validationError(res, "Invalid refresh token");
-    if (expired)
-      return forbiddenError(
-        res,
-        "Refresh token has expired. Please log in again."
-      );
+    if (expired) return forbiddenError(res, "Refresh token has expired. Please log in again.");
 
     const newAccessToken = generateAccessToken({ uuid: userUid });
 
-    return successOkWithData(res, "Access Token Generated Successfully", {
-      accessToken: newAccessToken,
-    });
+    return successOkWithData(res, "Access Token Generated Successfully", { accessToken: newAccessToken });
   } catch (error) {
     return catchError(res, error);
   }
-}
+};
 
 // ========================= Update Password ============================
 
 export async function updatePassword(req, res) {
   try {
-    const userUid = req.userUid;
-    const reqBodyFields = bodyReqFields(req, res, [
-      "oldPassword",
-      "newPassword",
-      "confirmPassword",
-    ]);
+    const userUid = req.userUid
+    const reqBodyFields = bodyReqFields(req, res, ["oldPassword", "newPassword", "confirmPassword"]);
     if (reqBodyFields.error) return reqBodyFields.response;
 
     const { oldPassword, newPassword, confirmPassword } = req.body;
@@ -290,18 +248,13 @@ export async function updatePassword(req, res) {
 
     // Compare oldPassword with hashed password in database
     const isMatch = await comparePassword(oldPassword, user.password);
-    if (!isMatch)
-      return validationError(res, "Invalid old password", "oldPassword");
+    if (!isMatch) return validationError(res, "Invalid old password", "oldPassword");
 
     const invalidPassword = validatePassword(newPassword, confirmPassword);
     if (invalidPassword) return validationError(res, invalidPassword);
 
     // Check if oldPassword and newPassword are the same
-    if (oldPassword === newPassword)
-      return validationError(
-        res,
-        "New password must be different from old password"
-      );
+    if (oldPassword === newPassword) return validationError(res, "New password must be different from old password");
 
     // Hash the new password
     const hashedPassword = await hashPassword(newPassword);

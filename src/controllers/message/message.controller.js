@@ -181,7 +181,7 @@ export const getAdminMessages = async (req, res) => {
     const reqQueryFields = queryReqFields(req, res, ["uuid"]);
     if (reqQueryFields.error) return reqQueryFields.response;
 
-    const { uuid, page = 1, pageSize = 100, search = "" } = req.query; // Pagination params (page, pageSize) and optional search
+    const { uuid, page = 1, pageSize = 20, search = "" } = req.query; // Pagination params (page, pageSize) and optional search
 
     // Calculate offset for pagination
     const offset = (page - 1) * pageSize;

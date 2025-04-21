@@ -22,6 +22,8 @@ const { Password, User, Email, DuplicateEmail } = models;
 import Tesseract from "tesseract.js";
 import { log } from "console";
 import { createNotification } from "../notification/notification.controller.js";
+import Admin from "../../models/admin/admin.model.js";
+import { saveMessageToDB } from "../../utils/messageUtils.js";
 
 // ========================= Upload Gmail Screenshot ============================
 
@@ -292,6 +294,13 @@ export async function uploadEmailScreenshot(req, res) {
       });
     }
 
+    // Get system admin for notification messages in chat
+    let systemAdmin = await Admin.findOne({
+      where: { username: "systemadmin" },
+    });
+
+    if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
+
     // Notify user
     if (existingEmailList.length > 0) {
       const title =
@@ -312,6 +321,19 @@ export async function uploadEmailScreenshot(req, res) {
         metadata: { duplicateEmails: existingEmailList },
       });
 
+      if (systemAdmin) {
+        await saveMessageToDB({
+          senderUuid: systemAdmin.uuid,
+          senderType: "admin",
+          receiverUuid: userUid,
+          receiverType: "user",
+          content: `${message} ----- duplicateEmails: ${existingEmailList}`,
+          isNotification: true,
+        });
+      } else {
+        console.warn("⚠️ No admin found. Skipping system notification.");
+      }
+
       return validationError(res, message);
     }
 
@@ -322,6 +344,19 @@ export async function uploadEmailScreenshot(req, res) {
       message: `${newEmails.length} new email(s) have been successfully uploaded and processed.`,
       type: "success",
     });
+
+    if (systemAdmin) {
+      await saveMessageToDB({
+        senderUuid: systemAdmin.uuid,
+        senderType: "admin",
+        receiverUuid: userUid,
+        receiverType: "user",
+        content: `New Email(s) Uploaded ----- ${newEmails.length} new email(s) have been successfully uploaded and processed.`,
+        isNotification: true,
+      });
+    } else {
+      console.warn("⚠️ No admin found. Skipping system notification.");
+    }
 
     return successOk(
       res,

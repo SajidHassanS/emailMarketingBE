@@ -30,6 +30,7 @@ import emailRoutes from "./routes/email/email.route.js";
 import notificationRoutes from "./routes/notification/notification.route.js";
 import withdrawalRoutes from "./routes/withdrawal/withdrawal.route.js";
 import withdrawalMethodRoutes from "./routes/withdrawal/withdrawalMethod.route.js";
+import messageRoutes from "./routes/message/message.route.js";
 
 // =========================================
 //            Configurations
@@ -52,13 +53,11 @@ app.use(cookieParser());
 app.use(helmet());
 
 // Enable CORS with default settings
-const corsOptions = {
-  origin: "*", // ✅ Allow any origin
-  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+const crosOptions = {
+  origin: nodeEnv === "production" ? domain : "*", // allow requests from all ips in development, and use array for multiple domains
+  // allowedHeaders: ['Content-Type', 'Authorization', 'x-token', 'y-token'],    // allow these custom headers only
 };
-
-app.use(cors(corsOptions));
+app.use(cors(crosOptions));
 
 // Logger middleware for development environment
 if (nodeEnv !== "production") {
@@ -100,6 +99,7 @@ app.use("/api/email", emailRoutes);
 app.use("/api/notification", notificationRoutes);
 app.use("/api/withdrawal", withdrawalRoutes);
 app.use("/api/withdrawal-method", withdrawalMethodRoutes);
+app.use("/api/chat", messageRoutes);
 
 // =========================================
 //            Global Error Handler
