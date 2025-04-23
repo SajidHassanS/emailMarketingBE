@@ -45,6 +45,7 @@ export async function getUniqueNameAndPassword(req, res) {
             password: user.Password.password
         });
     } catch (error) {
+        console.log("===== error in unique name and pass api ===== : ", error)
         return catchError(res, error);
     }
 }

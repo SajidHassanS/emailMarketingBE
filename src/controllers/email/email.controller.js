@@ -274,7 +274,7 @@ export async function uploadEmailScreenshot(req, res) {
         password: user.Password.password,
         fileName: filename,
         emailScreenshot: emailScreenshotPath,
-        remarks: "Extracted from screenshot",
+        remarks: "",
         userUuid: userUid,
         status: "pending",
       });
