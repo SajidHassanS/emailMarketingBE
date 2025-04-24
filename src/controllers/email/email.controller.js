@@ -430,11 +430,12 @@ export async function getAllEmails(req, res) {
 
 export async function getEmailStats(req, res) {
   try {
+    const userUuid = req.userUid
     const [pendingCount, goodCount, badCount, totalCount] = await Promise.all([
-      Email.count({ where: { status: "pending" } }),
-      Email.count({ where: { status: "good" } }),
-      Email.count({ where: { status: "bad" } }),
-      Email.count(),
+      Email.count({ where: { status: "pending", userUuid } }),
+      Email.count({ where: { status: "good", userUuid } }),
+      Email.count({ where: { status: "bad", userUuid } }),
+      Email.count({ where: { userUuid } }),
     ]);
 
     const stats = {
