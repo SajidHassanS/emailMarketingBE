@@ -223,37 +223,47 @@ export async function requestBonusWithdrawal(req, res) {
   const userUuid = req.userUid;
 
   // ✅ Check if required fields are provided
-  const reqBodyFields = bodyReqFields(req, res, ["bonusType"]);
+  const reqBodyFields = bodyReqFields(req, res, ["bonusType", "method"]);
   if (reqBodyFields.error) return reqBodyFields.response;
 
   const { bonusType, method } = req.body; // Optional: methodType to override default
 
   // Fetch user's default withdrawal method
-  const defaultMethod = await WithdrawalMethod.findOne({
-    where: { userUuid, isDefault: true },
+  // const defaultMethod = await WithdrawalMethod.findOne({
+  //   where: { userUuid, isDefault: true },
+  // });
+
+  // if (!defaultMethod) {
+  //   return frontError(
+  //     res,
+  //     "No default withdrawal method found. Please add one."
+  //   );
+  // }
+
+  // let methodToUse = defaultMethod;
+
+  // // If user provided a methodType, use it instead
+  // if (method) {
+  //   const providedMethod = await WithdrawalMethod.findOne({
+  //     where: { userUuid, methodType: method },
+  //   });
+
+  //   if (!providedMethod) {
+  //     return frontError(res, "Specified withdrawal method not found.");
+  //   }
+
+  //   methodToUse = providedMethod;
+  // }
+
+  const providedMethod = await WithdrawalMethod.findOne({
+    where: { userUuid, methodType: method },
   });
 
-  if (!defaultMethod) {
-    return frontError(
-      res,
-      "No default withdrawal method found. Please add one."
-    );
+  if (!providedMethod) {
+    return frontError(res, "Specified withdrawal method not found.");
   }
 
-  let methodToUse = defaultMethod;
-
-  // If user provided a methodType, use it instead
-  if (method) {
-    const providedMethod = await WithdrawalMethod.findOne({
-      where: { userUuid, methodType: method },
-    });
-
-    if (!providedMethod) {
-      return frontError(res, "Specified withdrawal method not found.");
-    }
-
-    methodToUse = providedMethod;
-  }
+  const methodToUse = providedMethod;
 
   // Validate bonusType
   if (!["signup", "referral"].includes(bonusType)) {
