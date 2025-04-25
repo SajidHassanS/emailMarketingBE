@@ -83,7 +83,7 @@ export async function requestWithdrawal(req, res) {
     });
 
     if (!providedMethod) {
-      return frontError(res, "Specified withdrawal method not found.");
+      return frontError(res, "Invalid withdrwal method.", "method");
     }
 
     const methodToUse = providedMethod;
@@ -203,15 +203,58 @@ export async function getBonus(req, res) {
         userUuid,
         type: ["signup", "referral"],
       },
+      include: [
+        {
+          model: BonusWithdrawal,
+          as: "withdrawals",
+          required: false,
+        },
+      ],
     });
 
-    // Extract the latest bonus of each type (if exists)
-    const signupBonus = bonuses.find((b) => b.type === "signup");
-    const referralBonus = bonuses.find((b) => b.type === "referral");
 
+    // Create a Set to track processed bonus_uuid (so we don't process the same bonus multiple times)
+    const processedBonusUuids = new Set();
+
+    // Filter out bonuses where the withdrawal has been approved, and only count one rejection
+    const availableBonuses = bonuses.filter(bonus => {
+      // Skip the bonus if we have already processed it
+      if (processedBonusUuids.has(bonus.uuid)) {
+        return false;
+      }
+
+      // If the bonus has no withdrawals, it's available
+      if (!bonus.withdrawals || bonus.withdrawals.length === 0) return true;
+
+      // Track if this bonus has been approved (if so, this bonus should not be included)
+      const hasApprovedWithdrawal = bonus.withdrawals.some(withdrawal => withdrawal.status === 'approved');
+
+      if (hasApprovedWithdrawal) {
+        // If there's an approved withdrawal, exclude this bonus completely
+        processedBonusUuids.add(bonus.uuid); // Mark as processed
+        return false;
+      }
+
+      // Track if this bonus has any rejected withdrawals
+      const hasRejectedWithdrawal = bonus.withdrawals.some(withdrawal => withdrawal.status === 'rejected');
+
+      // If we found a rejected withdrawal and it hasn't been processed yet, include this bonus
+      if (hasRejectedWithdrawal) {
+        processedBonusUuids.add(bonus.uuid); // Mark as processed
+        return true;
+      }
+
+      return false;
+    });
+
+    // Find the available bonuses by type
+    const signupBonus = availableBonuses.find(b => b.type === "signup");
+    const referralBonus = availableBonuses.find(b => b.type === "referral");
+
+    // Return the result
     return successOkWithData(res, "Bonus amounts fetched successfully.", {
-      signup: signupBonus?.amount || 0,
-      referral: referralBonus?.amount || 0,
+      signup: signupBonus ? signupBonus.amount : 0,
+      referral: referralBonus ? referralBonus.amount : 0,
     });
   } catch (error) {
     console.error("Error fetching bonuses:", error);
@@ -260,7 +303,7 @@ export async function requestBonusWithdrawal(req, res) {
   });
 
   if (!providedMethod) {
-    return frontError(res, "Specified withdrawal method not found.");
+    return frontError(res, "Invalid withdrwal method.", "method");
   }
 
   const methodToUse = providedMethod;
