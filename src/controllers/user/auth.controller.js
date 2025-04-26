@@ -55,8 +55,7 @@ export async function registerUser(req, res) {
     // ✅ Convert relevant fields to lowercase (excluding sensitive ones)
     const excludedFields = ['countryCode', 'phone', 'password', 'confirmPassword'];
     const requiredData = convertToLowercase(req.body, excludedFields);
-    let { countryCode, phone, password, confirmPassword } = requiredData;
-    let { username, referCode } = req.body // use this referCode is case sensitive
+    let { username, countryCode, phone, referCode, password, confirmPassword } = requiredData;
 
     // ✅ Validate User Name
     const usernameError = validateUsername(username)
@@ -106,11 +105,8 @@ export async function registerUser(req, res) {
     userData.countryCode = countryCode
     userData.password = hashedPassword
     if (referUser) userData.referCode = referCode // Assign referCode only if referCode is valid
-    // userData.bonus = 0 // get bonus set by admin | not needed any more
     userData.active = false
     if (passwords.length !== 0) userData.passwordUuid = passwords[passwordIndex].uuid // assign password for email generation
-
-    console.log("===== userData ===== : ", userData);
 
     // ✅ Create New User in Database
     const newUser = await User.create(userData);
@@ -181,7 +177,9 @@ export async function loginUser(req, res) {
     const reqBodyFields = bodyReqFields(req, res, ["username", "password"]);
     if (reqBodyFields.error) return reqBodyFields.response;
 
-    const { username, password } = req.body;
+    const excludedFields = ['password'];
+    const requiredData = convertToLowercase(req.body, excludedFields);
+    let { username, password } = requiredData;
 
     // Check if a user with the given email not exists
     const user = await User.findOne({ where: { username } });

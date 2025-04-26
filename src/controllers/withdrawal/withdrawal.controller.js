@@ -18,20 +18,82 @@ const {
 import { createNotification } from "../notification/notification.controller.js";
 
 // Get Available Balance for the User
+// export async function getAvailableBalance(req, res) {
+//   try {
+//     const userUuid = req.userUid;
+
+//     // // Get all emails that are marked "good" and are not withdrawn yet
+//     // const emails = await Email.findAll({
+//     //   where: { userUuid, status: "good", isWithdrawn: false },
+//     //   attributes: ["amount"], // Only fetch the 'amount' column
+//     // });
+
+//     // const totalAmount = emails.reduce((sum, e) => sum + e.amount, 0);
+
+//     // return successOkWithData(res, "Available balance fetched successfully.", {
+//     //   balance: totalAmount,
+//     // });
+
+//     // Get unwithdrawn "good" emails (positive earnings)
+//     const unwithdrawnEmails = await Email.findAll({
+//       where: { userUuid, status: "good", isWithdrawn: false },
+//       attributes: ["amount"],
+//     });
+
+//     // Get withdrawn emails with negative amounts (penalties)
+//     const withdrawnNegativeEmails = await Email.findAll({
+//       where: {
+//         userUuid,
+//         isWithdrawn: true,
+//         amount: { [Op.lt]: 0 },
+//       },
+//       attributes: ["amount"],
+//     });
+
+//     // Sum unwithdrawn positive amounts
+//     const positiveTotal = unwithdrawnEmails.reduce((sum, e) => sum + e.amount, 0);
+
+//     // Sum withdrawn negative amounts
+//     const negativeTotal = withdrawnNegativeEmails.reduce((sum, e) => sum + e.amount, 0);
+
+//     // Total balance includes both
+//     const availableBalance = positiveTotal + negativeTotal;
+
+//     return successOkWithData(res, "Available balance fetched successfully.", {
+//       balance: availableBalance,
+//     });
+//   } catch (error) {
+//     console.log("Error fetching balance:", error);
+//     return catchError(res, error);
+//   }
+// }
+
+// Get Available Balance for the User
 export async function getAvailableBalance(req, res) {
   try {
     const userUuid = req.userUid;
 
-    // Get all emails that are marked "good" and are not withdrawn yet
+    // Fetch all emails for this user
     const emails = await Email.findAll({
-      where: { userUuid, status: "good", isWithdrawn: false },
-      attributes: ["amount"], // Only fetch the 'amount' column
+      where: { userUuid },
+      attributes: ["amount", "status", "isWithdrawn"],
     });
 
-    const totalAmount = emails.reduce((sum, e) => sum + e.amount, 0);
+    let availableBalance = 0;
+
+    for (const email of emails) {
+      if (email.status === "good" && !email.isWithdrawn) {
+        // Positive earnings (not yet withdrawn)
+        availableBalance += email.amount;
+      } else if (email.isWithdrawn && email.amount < 0) {
+        // Negative penalties after withdrawal
+        availableBalance += email.amount;
+      }
+      // ❗ All other cases (bad, pending, etc.) don't affect balance
+    }
 
     return successOkWithData(res, "Available balance fetched successfully.", {
-      balance: totalAmount,
+      balance: availableBalance,
     });
   } catch (error) {
     console.log("Error fetching balance:", error);
@@ -39,96 +101,216 @@ export async function getAvailableBalance(req, res) {
   }
 }
 
+
 // Request a withdrawal
+// export async function requestWithdrawal(req, res) {
+//   try {
+//     const userUuid = req.userUid;
+
+//     const reqBodyFields = bodyReqFields(req, res, [
+//       "method",
+//     ]);
+//     if (reqBodyFields.error) return reqBodyFields.response;
+
+//     const { method } = req.body;
+
+//     // // Fetch user's default withdrawal method
+//     // const defaultMethod = await WithdrawalMethod.findOne({
+//     //   where: { userUuid, isDefault: true },
+//     // });
+
+//     // if (!defaultMethod) {
+//     //   return frontError(
+//     //     res,
+//     //     "No default withdrawal method found. Please add one."
+//     //   );
+//     // }
+
+//     // let methodToUse = defaultMethod;
+
+//     // If user provided a methodType, use it instead
+//     // if (method) {
+//     //   const providedMethod = await WithdrawalMethod.findOne({
+//     //     where: { userUuid, methodType: method },
+//     //   });
+
+//     //   if (!providedMethod) {
+//     //     return frontError(res, "Specified withdrawal method not found.");
+//     //   }
+
+//     //   methodToUse = providedMethod;
+//     // }
+
+//     const providedMethod = await WithdrawalMethod.findOne({
+//       where: { userUuid, methodType: method },
+//     });
+
+//     if (!providedMethod) {
+//       return frontError(res, "Invalid withdrwal method.", "method");
+//     }
+
+//     const methodToUse = providedMethod;
+
+//     // // Get all eligible emails for withdrawal
+//     // const availableEmails = await Email.findAll({
+//     //   where: { userUuid, status: "good", isWithdrawn: false },
+//     // });
+
+//     // const totalAmount = availableEmails.reduce(
+//     //   (sum, email) => sum + email.amount,
+//     //   0
+//     // );
+
+//     // Get unwithdrawn "good" emails (positive earnings)
+//     const unwithdrawnEmails = await Email.findAll({
+//       where: { userUuid, status: "good", isWithdrawn: false },
+//     });
+
+//     // Get withdrawn emails with negative amounts (penalties)
+//     const withdrawnNegativeEmails = await Email.findAll({
+//       where: {
+//         userUuid,
+//         isWithdrawn: true,
+//         amount: { [Op.lt]: 0 },
+//       },
+//     });
+
+//     const positiveTotal = unwithdrawnEmails.reduce((sum, e) => sum + e.amount, 0);
+//     const negativeTotal = withdrawnNegativeEmails.reduce((sum, e) => sum + e.amount, 0);
+
+//     const totalAmount = positiveTotal + negativeTotal;
+
+//     if (totalAmount <= 0) {
+//       return frontError(res, "No withdrawable amount found.");
+//     }
+
+//     //  Fetch the referral withdrawal threshold from system settings
+//     const settings = await SystemSetting.findOne({
+//       where: { key: "referral_withdrawal_threshold" },
+//     });
+
+//     // Default to 100 if the setting doesn't exist
+//     // const referralThreshold = settings ? settings.value : 100;
+//     const referralThreshold = 10;
+
+//     // Check if the referrer has withdrawn enough (dynamic threshold)
+//     if (totalAmount < referralThreshold) {
+//       return frontError(
+//         res,
+//         `You cannot withdraw amount less than ${referralThreshold} PKR.`
+//       );
+//     }
+
+//     // Create the withdrawal record using withdrawalMethodUuid
+//     const withdrawal = await Withdrawal.create({
+//       userUuid,
+//       withdrawalMethodUuid: methodToUse.uuid,
+//       amount: totalAmount,
+//     });
+
+//     // Mark emails as withdrawn
+//     await Email.update(
+//       { isWithdrawn: true },
+//       { where: { userUuid, status: "good", isWithdrawn: false } }
+//     );
+
+//     return successOkWithData(
+//       res,
+//       `Withdrawal of ₨${totalAmount} requested successfully.`,
+//       withdrawal
+//     );
+//   } catch (error) {
+//     console.error("Error requesting withdrawal:", error);
+//     return frontError(res, "Failed to request withdrawal.");
+//   }
+// }
+
 export async function requestWithdrawal(req, res) {
   try {
     const userUuid = req.userUid;
 
-    const reqBodyFields = bodyReqFields(req, res, [
-      "method",
-    ]);
+    // Validate body fields
+    const reqBodyFields = bodyReqFields(req, res, ["method"]);
     if (reqBodyFields.error) return reqBodyFields.response;
 
     const { method } = req.body;
 
-    // // Fetch user's default withdrawal method
-    // const defaultMethod = await WithdrawalMethod.findOne({
-    //   where: { userUuid, isDefault: true },
-    // });
-
-    // if (!defaultMethod) {
-    //   return frontError(
-    //     res,
-    //     "No default withdrawal method found. Please add one."
-    //   );
-    // }
-
-    // let methodToUse = defaultMethod;
-
-    // If user provided a methodType, use it instead
-    // if (method) {
-    //   const providedMethod = await WithdrawalMethod.findOne({
-    //     where: { userUuid, methodType: method },
-    //   });
-
-    //   if (!providedMethod) {
-    //     return frontError(res, "Specified withdrawal method not found.");
-    //   }
-
-    //   methodToUse = providedMethod;
-    // }
-
-    const providedMethod = await WithdrawalMethod.findOne({
+    // Fetch the specified withdrawal method
+    const methodToUse = await WithdrawalMethod.findOne({
       where: { userUuid, methodType: method },
     });
 
-    if (!providedMethod) {
-      return frontError(res, "Invalid withdrwal method.", "method");
+    if (!methodToUse) {
+      return frontError(res, "Invalid withdrawal method.", "method");
     }
 
-    const methodToUse = providedMethod;
-
-    // Get all eligible emails for withdrawal
-    const availableEmails = await Email.findAll({
-      where: { userUuid, status: "good", isWithdrawn: false },
+    // Fetch all relevant emails:
+    // 1. "good" and not yet withdrawn (positive earnings)
+    // 2. Already withdrawn but negative amounts (penalties)
+    const emails = await Email.findAll({
+      where: {
+        userUuid,
+        [Op.or]: [
+          { status: "good", isWithdrawn: false },
+          { isWithdrawn: true, amount: { [Op.lt]: 0 } },
+        ],
+      },
     });
 
-    const totalAmount = availableEmails.reduce(
-      (sum, email) => sum + email.amount,
-      0
-    );
-
-    if (totalAmount === 0) {
+    if (emails.length === 0) {
       return frontError(res, "No withdrawable amount found.");
     }
 
-    //  Fetch the referral withdrawal threshold from system settings
+    // Calculate totals
+    let positiveTotal = 0;
+    let negativeTotal = 0;
+
+    for (const email of emails) {
+      if (email.status === "good" && !email.isWithdrawn) {
+        positiveTotal += email.amount;
+      } else if (email.isWithdrawn && email.amount < 0) {
+        negativeTotal += email.amount;
+      }
+    }
+
+    const totalAmount = positiveTotal + negativeTotal;
+
+    if (totalAmount <= 0) {
+      return frontError(res, "No withdrawable amount found.");
+    }
+
+    // Fetch withdrawal threshold
     const settings = await SystemSetting.findOne({
       where: { key: "referral_withdrawal_threshold" },
     });
 
-    // Default to 100 if the setting doesn't exist
-    const referralThreshold = settings ? settings.value : 100;
+    // const referralThreshold = settings ? Number(settings.value) : 100; // fallback 100 PKR
+    const referralThreshold = 10; // fallback 10 PKR testing
 
-    // Check if the referrer has withdrawn enough (dynamic threshold)
     if (totalAmount < referralThreshold) {
       return frontError(
         res,
-        `You cannot withdraw amount less than ${referralThreshold} PKR.`
+        `You cannot withdraw an amount less than ${referralThreshold} PKR.`
       );
     }
 
-    // Create the withdrawal record using withdrawalMethodUuid
+    // Create withdrawal record
     const withdrawal = await Withdrawal.create({
       userUuid,
       withdrawalMethodUuid: methodToUse.uuid,
       amount: totalAmount,
     });
 
-    // Mark emails as withdrawn
+    // Mark all "good" and not withdrawn emails as withdrawn
     await Email.update(
       { isWithdrawn: true },
-      { where: { userUuid, status: "good", isWithdrawn: false } }
+      {
+        where: {
+          userUuid,
+          status: "good",
+          isWithdrawn: false,
+        },
+      }
     );
 
     return successOkWithData(
@@ -141,6 +323,7 @@ export async function requestWithdrawal(req, res) {
     return frontError(res, "Failed to request withdrawal.");
   }
 }
+
 
 export async function getMyWithdrawals(req, res) {
   try {
