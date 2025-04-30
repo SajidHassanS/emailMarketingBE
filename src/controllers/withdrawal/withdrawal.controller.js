@@ -284,8 +284,7 @@ export async function requestWithdrawal(req, res) {
       where: { key: "referral_withdrawal_threshold" },
     });
 
-    // const referralThreshold = settings ? Number(settings.value) : 100; // fallback 100 PKR
-    const referralThreshold = 10; // fallback 10 PKR testing
+    const referralThreshold = settings ? Number(settings.value) : 100; // fallback 100 PKR
 
     if (totalAmount < referralThreshold) {
       return frontError(
@@ -299,6 +298,14 @@ export async function requestWithdrawal(req, res) {
       userUuid,
       withdrawalMethodUuid: methodToUse.uuid,
       amount: totalAmount,
+    });
+
+    // Send notification to user
+    await createNotification({
+      userUuid,
+      title: 'Withdrawal Requested',
+      message: `Your withdrawal request of ₨${totalAmount} has been received. We will process it shortly.`,
+      type: "info", // or "action_required", depending on your frontend handling
     });
 
     // Mark all "good" and not withdrawn emails as withdrawn
