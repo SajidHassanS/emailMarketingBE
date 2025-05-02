@@ -297,8 +297,11 @@ export async function uploadEmailScreenshot(req, res) {
       where: { username: "systemadmin" },
     });
 
+    console.log("===== systemAdmin ===== :", systemAdmin)
+
     if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
 
+    console.log("===== !systemAdmin ===== :", systemAdmin)
     // Notify user
     if (existingEmailList.length > 0) {
       const title =
