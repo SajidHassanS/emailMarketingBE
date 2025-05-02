@@ -56,6 +56,7 @@ User.hasMany(Message, {
     foreignKey: "senderUuid",
     sourceKey: "uuid",
     as: "sentMessagesByUser",  // Changed alias for sent messages by user
+    constraints: false
 });
 
 Message.belongsTo(User, {
@@ -70,6 +71,7 @@ Admin.hasMany(Message, {
     foreignKey: "senderUuid",
     sourceKey: "uuid",
     as: "sentMessagesByAdmin",  // Changed alias for sent messages by admin
+    constraints: false
 });
 
 Message.belongsTo(Admin, {
@@ -84,6 +86,7 @@ User.hasMany(Message, {
     foreignKey: "receiverUuid",
     sourceKey: "uuid",
     as: "receivedMessagesByUser",  // Changed alias for received messages by user
+    constraints: false
 });
 
 Message.belongsTo(User, {
@@ -98,6 +101,7 @@ Admin.hasMany(Message, {
     foreignKey: "receiverUuid",
     sourceKey: "uuid",
     as: "receivedMessagesByAdmin",  // Changed alias for received messages by admin
+    constraints: false
 });
 
 Message.belongsTo(Admin, {
