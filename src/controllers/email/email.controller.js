@@ -335,6 +335,8 @@ export async function uploadEmailScreenshot(req, res) {
         console.warn("⚠️ No admin found. Skipping system notification.");
       }
 
+      console.log("===== validation error message ===== : ", message)
+
       return validationError(res, message);
     }
 
