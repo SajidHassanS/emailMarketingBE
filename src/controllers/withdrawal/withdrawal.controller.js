@@ -101,7 +101,6 @@ export async function getAvailableBalance(req, res) {
   }
 }
 
-
 // Request a withdrawal
 // export async function requestWithdrawal(req, res) {
 //   try {
@@ -303,7 +302,7 @@ export async function requestWithdrawal(req, res) {
     // Send notification to user
     await createNotification({
       userUuid,
-      title: 'Withdrawal Requested',
+      title: "Withdrawal Requested",
       message: `Your withdrawal request of ₨${totalAmount} has been received. We will process it shortly.`,
       type: "info", // or "action_required", depending on your frontend handling
     });
@@ -330,7 +329,6 @@ export async function requestWithdrawal(req, res) {
     return frontError(res, "Failed to request withdrawal.");
   }
 }
-
 
 export async function getMyWithdrawals(req, res) {
   try {
@@ -402,12 +400,11 @@ export async function getBonus(req, res) {
       ],
     });
 
-
     // Create a Set to track processed bonus_uuid (so we don't process the same bonus multiple times)
     const processedBonusUuids = new Set();
 
     // Filter out bonuses where the withdrawal has been approved, and only count one rejection
-    const availableBonuses = bonuses.filter(bonus => {
+    const availableBonuses = bonuses.filter((bonus) => {
       // Skip the bonus if we have already processed it
       if (processedBonusUuids.has(bonus.uuid)) {
         return false;
@@ -417,7 +414,9 @@ export async function getBonus(req, res) {
       if (!bonus.withdrawals || bonus.withdrawals.length === 0) return true;
 
       // Track if this bonus has been approved (if so, this bonus should not be included)
-      const hasApprovedWithdrawal = bonus.withdrawals.some(withdrawal => withdrawal.status === 'approved');
+      const hasApprovedWithdrawal = bonus.withdrawals.some(
+        (withdrawal) => withdrawal.status === "approved"
+      );
 
       if (hasApprovedWithdrawal) {
         // If there's an approved withdrawal, exclude this bonus completely
@@ -426,7 +425,9 @@ export async function getBonus(req, res) {
       }
 
       // Track if this bonus has any rejected withdrawals
-      const hasRejectedWithdrawal = bonus.withdrawals.some(withdrawal => withdrawal.status === 'rejected');
+      const hasRejectedWithdrawal = bonus.withdrawals.some(
+        (withdrawal) => withdrawal.status === "rejected"
+      );
 
       // If we found a rejected withdrawal and it hasn't been processed yet, include this bonus
       if (hasRejectedWithdrawal) {
@@ -438,8 +439,8 @@ export async function getBonus(req, res) {
     });
 
     // Find the available bonuses by type
-    const signupBonus = availableBonuses.find(b => b.type === "signup");
-    const referralBonus = availableBonuses.find(b => b.type === "referral");
+    const signupBonus = availableBonuses.find((b) => b.type === "signup");
+    const referralBonus = availableBonuses.find((b) => b.type === "referral");
 
     // Return the result
     return successOkWithData(res, "Bonus amounts fetched successfully.", {
@@ -518,7 +519,8 @@ export async function requestBonusWithdrawal(req, res) {
     if (!bonus) {
       return validationError(
         res,
-        `No ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+        `No ${
+          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
         } bonus available.`
       );
     }
@@ -527,7 +529,8 @@ export async function requestBonusWithdrawal(req, res) {
     if (!bonus.unlockedAfterFirstWithdrawal) {
       return validationError(
         res,
-        `Your ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+        `Your ${
+          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
         } bonus is locked until you make your first withdrawal.`
       );
     }
@@ -544,7 +547,8 @@ export async function requestBonusWithdrawal(req, res) {
     if (existingRequest) {
       return validationError(
         res,
-        `You have already created a withdrawal request for this ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+        `You have already created a withdrawal request for this ${
+          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
         } bonus.`
       );
     }
@@ -560,17 +564,20 @@ export async function requestBonusWithdrawal(req, res) {
     // ✅ Notify the user about the successful bonus withdrawal
     await createNotification({
       userUuid: userUuid,
-      title: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-        } Bonus Withdrawn`,
-      message: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-        } bonus has been successfully withdrawn.`,
+      title: `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      } Bonus Withdrawn`,
+      message: `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      } bonus has been successfully withdrawn.`,
       type: "success",
     });
 
     // ✅ Respond with success message and bonus amount
     return successOkWithData(
       res,
-      `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+      `${
+        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
       } bonus withdrawal request created successfully.`,
       { bonusAmount: bonus.amount, withdrawalUuid: withdrawalRequest.uuid }
     );
