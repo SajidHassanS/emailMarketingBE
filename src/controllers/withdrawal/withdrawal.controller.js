@@ -1,4 +1,4 @@
-import { Op } from "sequelize";
+import { Op, fn, col } from "sequelize";
 import models from "../../models/models.js";
 import {
   catchError,
@@ -296,6 +296,7 @@ export async function requestWithdrawal(req, res) {
     const withdrawal = await Withdrawal.create({
       userUuid,
       withdrawalMethodUuid: methodToUse.uuid,
+      withdrawalType: "email",
       amount: totalAmount,
     });
 
@@ -382,266 +383,609 @@ export async function getMyWithdrawals(req, res) {
   }
 }
 
+// export async function getBonus(req, res) {
+//   try {
+//     const userUuid = req.userUid;
+
+//     const bonuses = await Bonus.findAll({
+//       where: {
+//         userUuid,
+//         type: ["signup", "referral"],
+//       },
+//       include: [
+//         {
+//           model: BonusWithdrawal,
+//           as: "withdrawals",
+//           required: false,
+//         },
+//       ],
+//     });
+
+//     // Create a Set to track processed bonus_uuid (so we don't process the same bonus multiple times)
+//     const processedBonusUuids = new Set();
+
+//     // Filter out bonuses where the withdrawal has been approved, and only count one rejection
+//     const availableBonuses = bonuses.filter((bonus) => {
+//       // Skip the bonus if we have already processed it
+//       if (processedBonusUuids.has(bonus.uuid)) {
+//         return false;
+//       }
+
+//       // If the bonus has no withdrawals, it's available
+//       if (!bonus.withdrawals || bonus.withdrawals.length === 0) return true;
+
+//       // Track if this bonus has been approved (if so, this bonus should not be included)
+//       const hasApprovedWithdrawal = bonus.withdrawals.some(
+//         (withdrawal) => withdrawal.status === "approved"
+//       );
+
+//       if (hasApprovedWithdrawal) {
+//         // If there's an approved withdrawal, exclude this bonus completely
+//         processedBonusUuids.add(bonus.uuid); // Mark as processed
+//         return false;
+//       }
+
+//       // Track if this bonus has any rejected withdrawals
+//       const hasRejectedWithdrawal = bonus.withdrawals.some(
+//         (withdrawal) => withdrawal.status === "rejected"
+//       );
+
+//       // If we found a rejected withdrawal and it hasn't been processed yet, include this bonus
+//       if (hasRejectedWithdrawal) {
+//         processedBonusUuids.add(bonus.uuid); // Mark as processed
+//         return true;
+//       }
+
+//       return false;
+//     });
+
+//     // Find the available bonuses by type
+//     const signupBonus = availableBonuses.find((b) => b.type === "signup");
+//     const referralBonus = availableBonuses.find((b) => b.type === "referral");
+
+//     // Return the result
+//     return successOkWithData(res, "Bonus amounts fetched successfully.", {
+//       signup: signupBonus ? signupBonus.amount : 0,
+//       referral: referralBonus ? referralBonus.amount : 0,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching bonuses:", error);
+//     return catchError(res, error);
+//   }
+// }
+
+// export async function getBonus(req, res) {
+//   try {
+//     const userUuid = req.userUid;
+
+//     // 1 DB call: get SUM(amount) grouped by type
+//     const rows = await Bonus.findAll({
+//       attributes: [
+//         "type",
+//         [fn("SUM", col("amount")), "totalAmount"],
+//       ],
+//       where: {
+//         userUuid,
+//         isWithdrawn: false,
+//         // unlockedAfterFirstWithdrawal: true,
+//       },
+//       group: ["type"],
+//       raw: true,
+//     });
+
+//     console.log("===== rows ===== : ", rows)
+
+//     // Now use .find(...) to pull out each type
+//     const signupRow = rows.find(r => r.type === "signup");
+//     const referralRow = rows.find(r => r.type === "referral");
+
+//     // Convert to integers (defaulting to 0 if missing)
+//     const signup = parseInt(signupRow?.totalAmount || 0, 10);
+//     const referral = parseInt(referralRow?.totalAmount || 0, 10);
+
+//     return successOkWithData(res, "Bonus amounts fetched successfully.", {
+//       signup,
+//       referral,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching bonuses:", error);
+//     return catchError(res, error);
+//   }
+// }
+
+// import { fn, col } from "sequelize";
+// import Bonus from "../bonus/bonus.model.js";
+// import { successOkWithData, catchError } from "../../helpers/response.helper.js";
+
 export async function getBonus(req, res) {
   try {
-    const userUuid = req.userUid;
+    const userUuid = req.userUid;  // make sure your auth middleware sets this
 
-    const bonuses = await Bonus.findAll({
+    // Total (un-withdrawn) signup and referral amounts
+    const totalSignup = (await Bonus.sum("amount", {
+      where: { userUuid, type: "signup", isWithdrawn: false },
+    })) || 0;
+    const totalReferral = (await Bonus.sum("amount", {
+      where: { userUuid, type: "referral", isWithdrawn: false },
+    })) || 0;
+
+    // Of those, how much is actually unlocked?
+    const unlockedSignup = (await Bonus.sum("amount", {
       where: {
         userUuid,
-        type: ["signup", "referral"],
+        type: "signup",
+        isWithdrawn: false,
+        unlockedAfterFirstWithdrawal: true,
       },
-      include: [
-        {
-          model: BonusWithdrawal,
-          as: "withdrawals",
-          required: false,
+    })) || 0;
+    const unlockedReferral = (await Bonus.sum("amount", {
+      where: {
+        userUuid,
+        type: "referral",
+        isWithdrawn: false,
+        unlockedAfterFirstWithdrawal: true,
+      },
+    })) || 0;
+
+    // Locked = total − unlocked
+    const lockedSignup = totalSignup - unlockedSignup;
+    const lockedReferral = totalReferral - unlockedReferral;
+
+    return successOkWithData(
+      res,
+      "Bonus amounts fetched successfully.",
+      {
+        signup: {
+          unlocked: unlockedSignup,
+          locked: lockedSignup,
+          total: totalSignup,
         },
-      ],
-    });
-
-    // Create a Set to track processed bonus_uuid (so we don't process the same bonus multiple times)
-    const processedBonusUuids = new Set();
-
-    // Filter out bonuses where the withdrawal has been approved, and only count one rejection
-    const availableBonuses = bonuses.filter((bonus) => {
-      // Skip the bonus if we have already processed it
-      if (processedBonusUuids.has(bonus.uuid)) {
-        return false;
+        referral: {
+          unlocked: unlockedReferral,
+          locked: lockedReferral,
+          total: totalReferral,
+        },
       }
-
-      // If the bonus has no withdrawals, it's available
-      if (!bonus.withdrawals || bonus.withdrawals.length === 0) return true;
-
-      // Track if this bonus has been approved (if so, this bonus should not be included)
-      const hasApprovedWithdrawal = bonus.withdrawals.some(
-        (withdrawal) => withdrawal.status === "approved"
-      );
-
-      if (hasApprovedWithdrawal) {
-        // If there's an approved withdrawal, exclude this bonus completely
-        processedBonusUuids.add(bonus.uuid); // Mark as processed
-        return false;
-      }
-
-      // Track if this bonus has any rejected withdrawals
-      const hasRejectedWithdrawal = bonus.withdrawals.some(
-        (withdrawal) => withdrawal.status === "rejected"
-      );
-
-      // If we found a rejected withdrawal and it hasn't been processed yet, include this bonus
-      if (hasRejectedWithdrawal) {
-        processedBonusUuids.add(bonus.uuid); // Mark as processed
-        return true;
-      }
-
-      return false;
-    });
-
-    // Find the available bonuses by type
-    const signupBonus = availableBonuses.find((b) => b.type === "signup");
-    const referralBonus = availableBonuses.find((b) => b.type === "referral");
-
-    // Return the result
-    return successOkWithData(res, "Bonus amounts fetched successfully.", {
-      signup: signupBonus ? signupBonus.amount : 0,
-      referral: referralBonus ? referralBonus.amount : 0,
-    });
+    );
   } catch (error) {
     console.error("Error fetching bonuses:", error);
     return catchError(res, error);
   }
 }
 
+
+// export async function requestBonusWithdrawal(req, res) {
+//   const userUuid = req.userUid;
+
+//   // ✅ Check if required fields are provided
+//   const reqBodyFields = bodyReqFields(req, res, ["bonusType", "method"]);
+//   if (reqBodyFields.error) return reqBodyFields.response;
+
+//   const { bonusType, method } = req.body; // Optional: methodType to override default
+
+//   if (!["signup", "referral"].includes(bonusType)) {
+//     return frontError(
+//       res,
+//       "Invalid bonus type. It must be 'signup' or 'referral'."
+//     );
+//   }
+
+//   // Fetch user's default withdrawal method
+//   // const defaultMethod = await WithdrawalMethod.findOne({
+//   //   where: { userUuid, isDefault: true },
+//   // });
+
+//   // if (!defaultMethod) {
+//   //   return frontError(
+//   //     res,
+//   //     "No default withdrawal method found. Please add one."
+//   //   );
+//   // }
+
+//   // let methodToUse = defaultMethod;
+
+//   // // If user provided a methodType, use it instead
+//   // if (method) {
+//   //   const providedMethod = await WithdrawalMethod.findOne({
+//   //     where: { userUuid, methodType: method },
+//   //   });
+
+//   //   if (!providedMethod) {
+//   //     return frontError(res, "Specified withdrawal method not found.");
+//   //   }
+
+//   //   methodToUse = providedMethod;
+//   // }
+
+//   const providedMethod = await WithdrawalMethod.findOne({
+//     where: { userUuid, methodType: method },
+//   });
+
+//   if (!providedMethod) {
+//     return frontError(res, "Invalid withdrwal method.", "method");
+//   }
+
+//   const methodToUse = providedMethod;
+
+//   // // Validate bonusType
+//   // if (!["signup", "referral"].includes(bonusType)) {
+//   //   return frontError(
+//   //     res,
+//   //     "Invalid bonus type. It must be 'signup' or 'referral'."
+//   //   );
+//   // }
+
+//   try {
+//     // ✅ Fetch the bonus for the user based on the bonus type ('signup' or 'referral')
+//     const bonus = await Bonus.findOne({
+//       where: {
+//         userUuid: userUuid,
+//         type: bonusType,
+//       },
+//     });
+
+//     if (!bonus) {
+//       return validationError(
+//         res,
+//         `No ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//         } bonus available.`
+//       );
+//     }
+
+//     // ✅ Check if the bonus is unlocked after the first withdrawal
+//     if (!bonus.unlockedAfterFirstWithdrawal) {
+//       return validationError(
+//         res,
+//         `Your ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//         } bonus is locked until you make your first withdrawal.`
+//       );
+//     }
+
+//     // ✅ Check if a withdrawal request for the same bonus already exists
+//     const existingRequest = await BonusWithdrawal.findOne({
+//       where: {
+//         bonusUuid: bonus.uuid,
+//         userUuid: userUuid,
+//         status: "pending", // Optionally check only 'pending' requests
+//       },
+//     });
+
+//     if (existingRequest) {
+//       return validationError(
+//         res,
+//         `You have already created a withdrawal request for this ${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//         } bonus.`
+//       );
+//     }
+
+//     // ✅ Create a new withdrawal request
+//     const withdrawalRequest = await BonusWithdrawal.create({
+//       bonusUuid: bonus.uuid,
+//       userUuid: userUuid,
+//       withdrawalMethodUuid: methodToUse.uuid,
+//       status: "pending", // Set status as pending initially
+//     });
+
+//     // ✅ Notify the user about the successful bonus withdrawal
+//     await createNotification({
+//       userUuid: userUuid,
+//       title: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//         } Bonus Withdrawn`,
+//       message: `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//         } bonus has been successfully withdrawn.`,
+//       type: "success",
+//     });
+
+//     // ✅ Respond with success message and bonus amount
+//     return successOkWithData(
+//       res,
+//       `${bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
+//       } bonus withdrawal request created successfully.`,
+//       { bonusAmount: bonus.amount, withdrawalUuid: withdrawalRequest.uuid }
+//     );
+//   } catch (error) {
+//     console.error("Error processing bonus withdrawal:", error);
+//     return frontError(res, "Something went wrong. Please try again later.");
+//   }
+// }
+
+// API to get Bonus Withdrawals
+
+// export async function requestBonusWithdrawal(req, res) {
+//   try {
+//     const userUuid = req.userUid;                // from your auth middleware
+//     const { bonusType, method } = req.body;
+
+//     // 1) Validate inputs
+//     if (!["signup", "referral"].includes(bonusType)) {
+//       return frontError(res, "Invalid bonusType. Must be 'signup' or 'referral'.");
+//     }
+//     const providedMethod = await WithdrawalMethod.findOne({
+//       where: { userUuid, methodType: method },
+//     });
+
+//     if (!providedMethod) {
+//       return frontError(res, "Specified withdrawal method not found.");
+//     }
+
+//     // 2) Calculate how much they can withdraw right now
+//     const amount = await Bonus.sum("amount", {
+//       where: {
+//         userUuid,
+//         type: bonusType,
+//         isWithdrawn: false,
+//         unlockedAfterFirstWithdrawal: true,
+//       },
+//     }) || 0;
+
+//     if (amount <= 0) {
+//       return frontError(res, `No available ${bonusType} bonus to withdraw.`);
+//     }
+
+//     // 3) Create the withdrawal request
+//     const withdrawal = await Withdrawal.create({
+//       userUuid,
+//       withdrawalMethodUuid: providedMethod.uuid,
+//       withdrawalType: `${bonusType}-bonus`,
+//       amount,
+//       status: "pending",
+//     });
+
+//     return successOkWithData(res, "Withdrawal request created successfully.", withdrawal);
+//   } catch (error) {
+//     console.error("Error creating withdrawal request:", error);
+//     return catchError(res, error);
+//   }
+// }
+
 export async function requestBonusWithdrawal(req, res) {
-  const userUuid = req.userUid;
-
-  // ✅ Check if required fields are provided
-  const reqBodyFields = bodyReqFields(req, res, ["bonusType", "method"]);
-  if (reqBodyFields.error) return reqBodyFields.response;
-
-  const { bonusType, method } = req.body; // Optional: methodType to override default
-
-  // Fetch user's default withdrawal method
-  // const defaultMethod = await WithdrawalMethod.findOne({
-  //   where: { userUuid, isDefault: true },
-  // });
-
-  // if (!defaultMethod) {
-  //   return frontError(
-  //     res,
-  //     "No default withdrawal method found. Please add one."
-  //   );
-  // }
-
-  // let methodToUse = defaultMethod;
-
-  // // If user provided a methodType, use it instead
-  // if (method) {
-  //   const providedMethod = await WithdrawalMethod.findOne({
-  //     where: { userUuid, methodType: method },
-  //   });
-
-  //   if (!providedMethod) {
-  //     return frontError(res, "Specified withdrawal method not found.");
-  //   }
-
-  //   methodToUse = providedMethod;
-  // }
-
-  const providedMethod = await WithdrawalMethod.findOne({
-    where: { userUuid, methodType: method },
-  });
-
-  if (!providedMethod) {
-    return frontError(res, "Invalid withdrwal method.", "method");
-  }
-
-  const methodToUse = providedMethod;
-
-  // Validate bonusType
-  if (!["signup", "referral"].includes(bonusType)) {
-    return frontError(
-      res,
-      "Invalid bonus type. It must be 'signup' or 'referral'."
-    );
-  }
-
   try {
-    // ✅ Fetch the bonus for the user based on the bonus type ('signup' or 'referral')
-    const bonus = await Bonus.findOne({
+    const userUuid = req.userUid;              // from your auth middleware
+    const { bonusType, method } = req.body;
+    const capType = bonusType.charAt(0).toUpperCase() + bonusType.slice(1);
+
+    // 1) Validate bonusType
+    if (!["signup", "referral"].includes(bonusType)) {
+      return frontError(res, "Invalid bonusType. Must be 'signup' or 'referral'.");
+    }
+
+    // 2) Find withdrawal method
+    const providedMethod = await WithdrawalMethod.findOne({
+      where: { userUuid, methodType: method },
+    });
+    if (!providedMethod) {
+      return frontError(res, "Specified withdrawal method not found.");
+    }
+
+    // 3) Special “locked” checks + compute available amount
+    let amountToWithdraw = 0;
+    let lockedAmount = 0;
+
+    if (bonusType === "signup") {
+      // signup: must have at least one approved email withdrawal first
+      const emailCount = await Withdrawal.count({
+        where: { userUuid, withdrawalType: "email", status: "approved" },
+      });
+      if (emailCount < 1) {
+        return frontError(
+          res,
+          "You must make an email withdrawal before you can claim your signup bonus."
+        );
+      }
+      // then sum *all* unlocked signup bonuses
+      amountToWithdraw = await Bonus.sum("amount", {
+        where: {
+          userUuid,
+          type: "signup",
+          isWithdrawn: false,
+          unlockedAfterFirstWithdrawal: true,
+        },
+      }) || 0;
+
+    } else /* referral */ {
+      // sum unlocked vs locked referral bonus
+      amountToWithdraw = await Bonus.sum("amount", {
+        where: {
+          userUuid,
+          type: "referral",
+          isWithdrawn: false,
+          unlockedAfterFirstWithdrawal: true,
+        },
+      }) || 0;
+
+      lockedAmount = await Bonus.sum("amount", {
+        where: {
+          userUuid,
+          type: "referral",
+          isWithdrawn: false,
+          unlockedAfterFirstWithdrawal: false,
+        },
+      }) || 0;
+
+      // nothing unlocked ⇒ error
+      if (amountToWithdraw <= 0) {
+        return frontError(
+          res,
+          "Your referral bonus is locked until your referee makes their first withdrawal."
+        );
+      }
+    }
+
+    // 4) Prevent duplicate pending requests
+    const existing = await Withdrawal.findOne({
       where: {
-        userUuid: userUuid,
-        type: bonusType,
+        userUuid,
+        withdrawalType: `${bonusType}-bonus`,
+        status: "pending",
       },
     });
-
-    if (!bonus) {
-      return validationError(
+    if (existing) {
+      return frontError(
         res,
-        `No ${
-          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-        } bonus available.`
+        `You already have a pending request for your ${capType} bonus.`
       );
     }
 
-    // ✅ Check if the bonus is unlocked after the first withdrawal
-    if (!bonus.unlockedAfterFirstWithdrawal) {
-      return validationError(
-        res,
-        `Your ${
-          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-        } bonus is locked until you make your first withdrawal.`
-      );
-    }
-
-    // ✅ Check if a withdrawal request for the same bonus already exists
-    const existingRequest = await BonusWithdrawal.findOne({
-      where: {
-        bonusUuid: bonus.uuid,
-        userUuid: userUuid,
-        status: "pending", // Optionally check only 'pending' requests
-      },
+    // 5) Create the withdrawal request for the unlocked amount
+    const withdrawal = await Withdrawal.create({
+      userUuid,
+      withdrawalMethodUuid: providedMethod.uuid,
+      withdrawalType: `${bonusType}-bonus`,
+      amount: amountToWithdraw,
+      status: "pending",
     });
 
-    if (existingRequest) {
-      return validationError(
-        res,
-        `You have already created a withdrawal request for this ${
-          bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-        } bonus.`
-      );
-    }
-
-    // ✅ Create a new withdrawal request
-    const withdrawalRequest = await BonusWithdrawal.create({
-      bonusUuid: bonus.uuid,
-      userUuid: userUuid,
-      withdrawalMethodUuid: methodToUse.uuid,
-      status: "pending", // Set status as pending initially
-    });
-
-    // ✅ Notify the user about the successful bonus withdrawal
-    await createNotification({
-      userUuid: userUuid,
-      title: `${
-        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-      } Bonus Withdrawn`,
-      message: `${
-        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-      } bonus has been successfully withdrawn.`,
-      type: "success",
-    });
-
-    // ✅ Respond with success message and bonus amount
-    return successOkWithData(
-      res,
-      `${
-        bonusType.charAt(0).toUpperCase() + bonusType.slice(1)
-      } bonus withdrawal request created successfully.`,
-      { bonusAmount: bonus.amount, withdrawalUuid: withdrawalRequest.uuid }
+    // 6) Mark exactly those unlocked bonuses as withdrawn
+    await Bonus.update(
+      { isWithdrawn: true },
+      {
+        where: {
+          userUuid,
+          type: bonusType,
+          isWithdrawn: false,
+          unlockedAfterFirstWithdrawal: true,
+        },
+      }
     );
+
+    // 7) Build success message
+    let msg = `Withdrawal request for ₨ ${amountToWithdraw} ${capType.toLowerCase()} bonus created successfully.`;
+    if (bonusType === "referral" && lockedAmount > 0) {
+      msg += ` ₨ ${lockedAmount} of your referral bonus remains locked until your referee makes their first withdrawal.`;
+    }
+
+    return successOkWithData(res, msg, withdrawal);
+
   } catch (error) {
-    console.error("Error processing bonus withdrawal:", error);
-    return frontError(res, "Something went wrong. Please try again later.");
+    console.error("Error creating bonus withdrawal request:", error);
+    return catchError(res, error);
   }
 }
 
-// API to get Bonus Withdrawals
+
+// export async function getMyBonusWithdrawals(req, res) {
+//   try {
+//     const userUuid = req.userUid;
+
+//     const { status, startDate, endDate } = req.query;
+
+//     // Build the query filter object
+//     const queryFilter = { userUuid };
+
+//     // Filter by status if provided
+//     if (status && ["pending", "approved", "withdrawn"].includes(status)) {
+//       queryFilter.status = status;
+//     }
+
+//     // Filter by date range (start and end date) if provided
+//     // Filter by date range if startDate or endDate are provided
+//     if (startDate || endDate) {
+//       queryFilter.createdAt = {};
+//       if (startDate) {
+//         // Convert startDate to Date and reset time to midnight (start of day)
+//         const start = new Date(startDate);
+//         start.setHours(0, 0, 0, 0); // Reset time to 00:00:00
+//         queryFilter.createdAt[Op.gte] = start;
+//       }
+
+//       if (endDate) {
+//         // Convert endDate to Date and reset time to 23:59:59
+//         const end = new Date(endDate);
+//         end.setHours(23, 59, 59, 999); // Set time to 23:59:59
+//         queryFilter.createdAt[Op.lte] = end;
+//       }
+//     }
+
+//     // Fetch Bonus Withdrawals based on the query filter
+//     const bonusWithdrawals = await BonusWithdrawal.findAll({
+//       where: queryFilter,
+//       include: [
+//         {
+//           model: Bonus, // Assuming you're including Bonus details
+//           as: "bonus",
+//           attributes: ["uuid", "amount", "type"], // Adjust attributes as per need
+//         },
+//       ],
+//       order: [["createdAt", "DESC"]], // Ordering by creation date (desc)
+//     });
+
+//     if (!bonusWithdrawals || bonusWithdrawals.length === 0) {
+//       return frontError(
+//         res,
+//         "No bonus withdrawals found for the given criteria."
+//       );
+//     }
+
+//     // Return success response with the retrieved data
+//     return successOkWithData(
+//       res,
+//       "Bonus withdrawals retrieved successfully.",
+//       bonusWithdrawals
+//     );
+//   } catch (error) {
+//     console.error("Error fetching bonus withdrawals:", error);
+//     return frontError(res, "Something went wrong. Please try again later.");
+//   }
+// }
+
 export async function getMyBonusWithdrawals(req, res) {
   try {
-    const userUuid = req.userUid;
+    const userUuid = req.userUid;                  // from auth middleware
+    const { status, startDate, endDate, withdrawalType } = req.query;
 
-    const { status, startDate, endDate } = req.query;
+    // Build base WHERE clause
+    const where = {
+      userUuid
+    };
 
-    // Build the query filter object
-    const queryFilter = { userUuid };
-
-    // Filter by status if provided
-    if (status && ["pending", "approved", "withdrawn"].includes(status)) {
-      queryFilter.status = status;
+    const validTypes = ["signup-bonus", "referral-bonus"];
+    if (withdrawalType) {
+      if (!validTypes.includes(withdrawalType)) {
+        return frontError(res, 400, "Invalid withdrawalType…");
+      }
+      where.withdrawalType = withdrawalType;
+    } else {
+      where.withdrawalType = validTypes;
     }
 
-    // Filter by date range (start and end date) if provided
-    // Filter by date range if startDate or endDate are provided
+    // status filter: allow comma-separated statuses
+    if (status) {
+      where.status = status.split(",").map(s => s.trim());
+    }
+
+    // date range filter on created_at
     if (startDate || endDate) {
-      queryFilter.createdAt = {};
+      where.created_at = {};
       if (startDate) {
-        // Convert startDate to Date and reset time to midnight (start of day)
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0); // Reset time to 00:00:00
-        queryFilter.createdAt[Op.gte] = start;
+        const from = new Date(startDate);
+        if (isNaN(from)) {
+          return frontError(res, 400, "Invalid startDate");
+        }
+        where.created_at[Op.gte] = from;
       }
-
       if (endDate) {
-        // Convert endDate to Date and reset time to 23:59:59
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999); // Set time to 23:59:59
-        queryFilter.createdAt[Op.lte] = end;
+        const to = new Date(endDate);
+        if (isNaN(to)) {
+          return frontError(res, 400, "Invalid endDate");
+        }
+        where.created_at[Op.lte] = to;
       }
     }
 
-    // Fetch Bonus Withdrawals based on the query filter
-    const bonusWithdrawals = await BonusWithdrawal.findAll({
-      where: queryFilter,
+    // Fetch matching records
+    const bonusWithdrawals = await Withdrawal.findAll({
+      where,
       include: [
         {
-          model: Bonus, // Assuming you're including Bonus details
-          as: "bonus",
-          attributes: ["uuid", "amount", "type"], // Adjust attributes as per need
+          model: WithdrawalMethod,
+          as: "withdrawalMethod",
+          attributes: ["uuid", "methodType", "accountNumber"],
         },
       ],
-      order: [["createdAt", "DESC"]], // Ordering by creation date (desc)
+      order: [["created_at", "DESC"]],
     });
 
-    if (!bonusWithdrawals || bonusWithdrawals.length === 0) {
-      return frontError(
-        res,
-        "No bonus withdrawals found for the given criteria."
-      );
-    }
-
-    // Return success response with the retrieved data
+    // Return as requested
     return successOkWithData(
       res,
       "Bonus withdrawals retrieved successfully.",
@@ -649,6 +993,6 @@ export async function getMyBonusWithdrawals(req, res) {
     );
   } catch (error) {
     console.error("Error fetching bonus withdrawals:", error);
-    return frontError(res, "Something went wrong. Please try again later.");
+    return catchError(res, error);
   }
 }

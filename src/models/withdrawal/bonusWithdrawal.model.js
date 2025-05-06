@@ -51,32 +51,32 @@ export default BonusWithdrawal;
 
 // ===================== Associations ======================
 
-Bonus.hasMany(BonusWithdrawal, {
-    foreignKey: "bonusUuid",
-    as: "withdrawals",
-    onDelete: "CASCADE",
-});
+// Bonus.hasMany(BonusWithdrawal, {
+//     foreignKey: "bonusUuid",
+//     as: "withdrawals",
+//     onDelete: "CASCADE",
+// });
 
-BonusWithdrawal.belongsTo(Bonus, {
-    foreignKey: "bonusUuid",
-    as: "bonus",
-});
+// BonusWithdrawal.belongsTo(Bonus, {
+//     foreignKey: "bonusUuid",
+//     as: "bonus",
+// });
 
-User.hasMany(BonusWithdrawal, {
-    foreignKey: "userUuid",
-    as: "bonusWithdrawals",
-});
+// User.hasMany(BonusWithdrawal, {
+//     foreignKey: "userUuid",
+//     as: "bonusWithdrawals",
+// });
 
-BonusWithdrawal.belongsTo(User, {
-    foreignKey: "userUuid",
-    as: "user",
-});
+// BonusWithdrawal.belongsTo(User, {
+//     foreignKey: "userUuid",
+//     as: "user",
+// });
 
-WithdrawalMethod.hasMany(BonusWithdrawal, {
-    foreignKey: "withdrawalMethodUuid",
-    as: "bonusWithdrawals",
-});
-BonusWithdrawal.belongsTo(WithdrawalMethod, {
-    foreignKey: "withdrawalMethodUuid",
-    as: "withdrawalMethod",
-});
+// WithdrawalMethod.hasMany(BonusWithdrawal, {
+//     foreignKey: "withdrawalMethodUuid",
+//     as: "bonusWithdrawals",
+// });
+// BonusWithdrawal.belongsTo(WithdrawalMethod, {
+//     foreignKey: "withdrawalMethodUuid",
+//     as: "withdrawalMethod",
+// });
