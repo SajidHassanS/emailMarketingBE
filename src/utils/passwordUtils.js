@@ -31,7 +31,7 @@ export const validatePassword = (password, confirmPassword) => {
     return "Password must be at least 8 characters long";
   }
   // Strong password criteria
-  const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  const strongPasswordRegex = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[^A-Za-z\d])[\S]{8,}$/;
   if (!strongPasswordRegex.test(password)) {
     return "Password must contain at least one uppercase letter, one numeric digit and one special character.";
   }
