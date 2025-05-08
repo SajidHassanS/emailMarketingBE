@@ -1,32 +1,25 @@
+// routes/email.routes.js
 import express from "express";
 import * as emailCtrl from "../../controllers/email/email.controller.js";
 import verifyToken from "../../middlewares/authMiddleware.js";
-import {
-  setEmailScreenshotFilename,
-  setEmailScreenshotsPath,
-} from "../../middlewares/multer.middleware.js";
+import { setEmailScreenshotFilename } from "../../middlewares/multer.middleware.js";
 import upload from "../../config/multer.config.js";
 
 const router = express.Router();
 
-// Email routes
-router
-  .route("/")
-  // .get(verifyToken, emailCtrl.getAllEmails) // Get all emails
-  .post(
-    verifyToken,
-    setEmailScreenshotsPath, // Set the directory path
-    setEmailScreenshotFilename, // Generate filename dynamically
-    upload.single("emailScreenshot"),
-    emailCtrl.uploadEmailScreenshot
-  );
+// ========================= Email Routes ============================
 
-router.route("/all").get(verifyToken, emailCtrl.getAllEmails); // Get all emails
+// ✅ Correct Middleware Order
+router.post(
+  "/",
+  verifyToken,
+  upload.single("emailScreenshot"), // Populate req.file
+  setEmailScreenshotFilename, // Now req.file is available
+  emailCtrl.uploadEmailScreenshot
+);
 
-router.route("/stats").get(verifyToken, emailCtrl.getEmailStats); // Email stats
-
-router
-  .route("/duplicate/all")
-  .get(verifyToken, emailCtrl.getAllDuplicateEmails); // Get all duplicate emails
+router.get("/all", verifyToken, emailCtrl.getAllEmails);
+router.get("/stats", verifyToken, emailCtrl.getEmailStats);
+router.get("/duplicate/all", verifyToken, emailCtrl.getAllDuplicateEmails);
 
 export default router;

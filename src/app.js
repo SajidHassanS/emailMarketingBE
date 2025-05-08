@@ -1,6 +1,9 @@
 // =========================================
-//             Lbraries Import
+//             Libraries Import
 // =========================================
+import dotenv from "dotenv";
+dotenv.config(); // Load AWS and other environment variables
+
 import chalk from "chalk";
 import cors from "cors";
 import cookieParser from "cookie-parser";
@@ -14,6 +17,8 @@ import os from "os";
 import { fileURLToPath } from "url";
 import path from "path";
 import { domain } from "./config/initialConfig.js";
+import { S3Client } from "@aws-sdk/client-s3";
+import { fromEnv } from "@aws-sdk/credential-providers";
 // import passport from "./config/passport.js";
 
 // =========================================
@@ -33,65 +38,81 @@ import withdrawalMethodRoutes from "./routes/withdrawal/withdrawalMethod.route.j
 import messageRoutes from "./routes/message/message.route.js";
 
 // =========================================
+//          AWS S3 Configuration (v3)
+// =========================================
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: fromEnv(),
+});
+
+// Expose the S3 client globally if needed
+global.s3Client = s3Client;
+
+// =========================================
 //            Configurations
 // =========================================
-// Initializing the app
+// Initialize the app
 const app = express();
-// app.use(passport.initialize());
 
-// If you plan to use session-based flows (optional with JWT):
+// Session setup (optional, for JWT or OAuth)
 app.use(
-  session({ secret: "yoursecret", resave: false, saveUninitialized: false })
+  session({
+    secret: process.env.SESSION_SECRET || "yoursecret",
+    resave: false,
+    saveUninitialized: false,
+    cookie: { secure: nodeEnv === "production" },
+  })
 );
-// app.use(passport.session());
 
-// ... your routes and rest of the code
-
+// Load cookies
 app.use(cookieParser());
 
 // Essential security headers with Helmet
 app.use(helmet());
 
 // Enable CORS with default settings
-const crosOptions = {
-  origin: nodeEnv === "production" ? domain : "*", // allow requests from all ips in development, and use array for multiple domains
-  // allowedHeaders: ['Content-Type', 'Authorization', 'x-token', 'y-token'],    // allow these custom headers only
+const corsOptions = {
+  origin: nodeEnv === "production" ? domain : "*",
+  credentials: true, // Allow cookies if needed
 };
-app.use(cors(crosOptions));
+app.use(cors(corsOptions));
 
 // Logger middleware for development environment
 if (nodeEnv !== "production") {
   app.use(morgan("dev"));
 }
 
-// Compress all routes
+// Compress all responses
 app.use(compression());
 
 // Rate limiting to prevent brute-force attacks
-const limiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-});
-app.use(limiter);
+app.use(
+  rateLimit({
+    windowMs: 5 * 60 * 1000, // 5 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+  })
+);
 
-// Built-in middleware for parsing JSON
-app.use(express.json());
+// JSON and URL-encoded body parsing
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
-// static directories
-// Convert import.meta.url to a file path
+// Static directories (if you still need this for non-S3 assets)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-app.use("/static", express.static(path.join(__dirname, "../../", "static")));
+
+// Remove the local static directory for screenshots (if fully moved to S3)
+// app.use("/static", express.static(path.join(__dirname, "../../", "static")));
 
 // =========================================
 //            Routes
 // =========================================
-// Route for root path
+// Root path
 app.get("/", (req, res) => {
   res.send("Welcome to User Dashboard Backend");
 });
 
-// other routes
+// Register routes
 app.use("/api/user/auth", authRoutes);
 app.use("/api/user/profile", profileRoutes);
 app.use("/api/dashboard", dashboardRoutes);
@@ -104,7 +125,6 @@ app.use("/api/chat", messageRoutes);
 // =========================================
 //            Global Error Handler
 // =========================================
-// Global error handler
 app.use((err, req, res, next) => {
   console.error(chalk.red(err.stack));
   res.status(err.status || 500).json({
@@ -113,14 +133,18 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Database connection
+// =========================================
+//          Database Connection
+// =========================================
 connectDB();
 
-// Server running
+// =========================================
+//            Server Start
+// =========================================
 app.listen(port, "0.0.0.0", () => {
   console.log(
     chalk.bgYellow.bold(
-      ` Server is listening at http://${getIPAddress()}:${port} `
+      ` 🚀 Server is listening at http://${getIPAddress()}:${port} `
     )
   );
 });

@@ -1,3 +1,4 @@
+// ========================= Libraries Import =========================
 import { Op, Sequelize, ValidationError } from "sequelize";
 import { bodyReqFields, queryReqFields } from "../../utils/requiredFields.js";
 import {
@@ -13,186 +14,55 @@ import {
 import { convertToLowercase, getRelativePath } from "../../utils/utils.js";
 import models from "../../models/models.js";
 import { validatePassword } from "../../utils/passwordUtils.js";
-import { uniqueNamesGenerator, names } from "unique-names-generator"; // Generates realistic names
-// import Email from "../../models/email/email.model.js";
-import { emailPass } from "../../config/initialConfig.js";
-import path, { extname, resolve } from "path";
-import fs, { existsSync, mkdirSync, readdirSync, createReadStream, unlinkSync } from "fs";
-const { Password, User, Email, DuplicateEmail } = models;
+import { uniqueNamesGenerator, names } from "unique-names-generator";
+import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
+import fs from "fs";
 import Tesseract from "tesseract.js";
-import { log } from "console";
 import { createNotification } from "../notification/notification.controller.js";
 import Admin from "../../models/admin/admin.model.js";
 import { saveMessageToDB } from "../../utils/messageUtils.js";
+import PQueue from "p-queue"; // For rate limiting
+
+// Initialize S3 client (v3)
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+const { Password, User, Email, DuplicateEmail } = models;
 
 // ========================= Azure OCR SDK ============================
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-
-// now you can require the CJS packages:
-const createImageAnalysisClient = require("@azure-rest/ai-vision-image-analysis").default;
+const createImageAnalysisClient =
+  require("@azure-rest/ai-vision-image-analysis").default;
 const { AzureKeyCredential } = require("@azure/core-auth");
 const endpoint = process.env.COMPUTER_VISION_ENDPOINT;
 const key = process.env.COMPUTER_VISION_KEY;
 const client = createImageAnalysisClient(endpoint, new AzureKeyCredential(key));
 
+// ========================= Helper Functions =========================
+function generateS3Url(key) {
+  const bucketName = process.env.S3_BUCKET_NAME;
+  const region = process.env.AWS_REGION;
+  return `https://${bucketName}.s3.${region}.amazonaws.com/${key}`;
+}
 
-// ========================= Upload Gmail Screenshot ============================
+async function streamToBuffer(stream) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    stream.on("data", (chunk) => chunks.push(chunk));
+    stream.on("end", () => resolve(Buffer.concat(chunks)));
+    stream.on("error", reject);
+  });
+}
 
-// using Tesseract ocr
-// export async function uploadEmailScreenshot(req, res) {
-//   try {
-//     const userUid = req.userUid;
+const queue = new PQueue({ concurrency: 3 }); // Limit Tesseract processing
 
-//     if (!req.file) {
-//       return frontError(res, "No file uploaded.");
-//     }
-
-//     const { filename, path } = req.file;
-//     const emailScreenshotPath = getRelativePath(req.file.path);
-
-//     const { data } = await Tesseract.recognize(path, "eng");
-//     const extractedText = data.text;
-
-//     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-//     const extractedEmails = extractedText.match(emailRegex) || [];
-
-//     console.log("===== extractedEmails ===== : ", extractedEmails)
-
-//     if (extractedEmails.length === 0) {
-//       return frontError(res, "No valid email found in the screenshot.");
-//     }
-
-//     const existingEmails = await Email.findAll({
-//       where: { email: extractedEmails },
-//       attributes: ["uuid", "email", "status"],
-//     });
-
-//     const existingEmailList = existingEmails.map((e) => e.email);
-//     const newEmails = extractedEmails.filter(
-//       (email) => !existingEmailList.includes(email)
-//     );
-
-//     // Get user's assigned password
-//     const user = await User.findByPk(userUid, {
-//       attributes: ["passwordUuid"],
-//       include: {
-//         model: Password,
-//         attributes: ["uuid", "password"],
-//       },
-//     });
-
-//     if (!user.Password || !user.Password.password) {
-//       return validationError(
-//         res,
-//         "Cannot upload screenshot. Try again later. If the issue persists, contact admin. [Error Code: PASSWORD]"
-//       );
-//     }
-
-//     const emailEntries = [];
-
-//     // Create new email entries
-//     for (const email of newEmails) {
-//       emailEntries.push({
-//         email,
-//         password: user.Password.password,
-//         fileName: filename,
-//         emailScreenshot: emailScreenshotPath,
-//         remarks: "",
-//         userUuid: userUid,
-//         status: "pending",
-//       });
-//     }
-
-//     // Bulk insert new emails
-//     if (emailEntries.length > 0) {
-//       await Email.bulkCreate(emailEntries);
-//     }
-
-//     // Log duplicate emails in DuplicateEmail table
-//     for (const existing of existingEmails) {
-//       await DuplicateEmail.create({
-//         emailUuid: existing.uuid,
-//         uploadedByUuid: userUid,
-//         fileName: filename,
-//       });
-//     }
-
-//     // Get system admin for notification messages in chat
-//     let systemAdmin = await Admin.findOne({
-//       where: { username: "systemadmin" },
-//     });
-
-//     if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
-
-//     // Notify user
-//     if (existingEmailList.length > 0) {
-//       const title =
-//         existingEmailList.length === 1
-//           ? "Duplicate Email Found"
-//           : "Duplicate Emails Found";
-
-//       let message = `${existingEmailList.length} duplicate email(s) detected.`;
-//       if (newEmails.length > 0) {
-//         message += ` The remaining ${newEmails.length} email(s) were uploaded successfully.`;
-//       }
-
-//       await createNotification({
-//         userUuid: userUid,
-//         title,
-//         message,
-//         type: "duplicate_email",
-//         metadata: { duplicateEmails: existingEmailList },
-//       });
-
-//       if (systemAdmin) {
-//         await saveMessageToDB({
-//           senderUuid: systemAdmin.uuid,
-//           senderType: "admin",
-//           receiverUuid: userUid,
-//           receiverType: "user",
-//           content: `${message} ----- duplicateEmails: ${existingEmailList}`,
-//           isNotification: true,
-//         });
-//       } else {
-//         console.warn("⚠️ No admin found. Skipping system notification.");
-//       }
-
-//       return validationError(res, message);
-//     }
-
-//     // All emails were new
-//     await createNotification({
-//       userUuid: userUid,
-//       title: "New Email(s) Uploaded",
-//       message: `${newEmails.length} new email(s) have been successfully uploaded and processed.`,
-//       type: "success",
-//     });
-
-//     if (systemAdmin) {
-//       await saveMessageToDB({
-//         senderUuid: systemAdmin.uuid,
-//         senderType: "admin",
-//         receiverUuid: userUid,
-//         receiverType: "user",
-//         content: `New Email(s) Uploaded ----- ${newEmails.length} new email(s) have been successfully uploaded and processed.`,
-//         isNotification: true,
-//       });
-//     } else {
-//       console.warn("⚠️ No admin found. Skipping system notification.");
-//     }
-
-//     return successOk(
-//       res,
-//       "Email screenshot uploaded & processed successfully."
-//     );
-//   } catch (error) {
-//     console.log("===== Error ===== :", error);
-//     return catchError(res, error);
-//   }
-// }
-
-// using azure ocr
+// ========================= Upload Email Screenshot =========================
 export async function uploadEmailScreenshot(req, res) {
   try {
     const userUid = req.userUid;
@@ -201,37 +71,53 @@ export async function uploadEmailScreenshot(req, res) {
       return frontError(res, "No file uploaded.");
     }
 
-    const { filename, path: filePath } = req.file;
-    const emailScreenshotPath = getRelativePath(filePath);
+    const { key, bucket } = req.file;
+    const filename = key.split("/").pop() || "unknown_file";
+    const fullUrl = generateS3Url(key);
 
-    // quick sanity check in your logs:
-    console.log("Uploaded filePath:", filePath, typeof filePath);
-    // should print something like "/your/project/uploads/abcd123.png" and "string"
+    console.log("Uploaded S3 Key:", key);
+    console.log("Full URL:", fullUrl);
 
-    // ─── Azure OCR ──────────────────────────────────────────────────────
+    const fileStream = await s3Client.send(
+      new GetObjectCommand({ Bucket: bucket, Key: key })
+    );
 
-    const buffer = fs.readFileSync(req.file.path);
-    const response = await client
-      .path('/imageanalysis:analyze')
-      .post({
+    const buffer = await streamToBuffer(fileStream.Body);
+    if (!buffer || buffer.length === 0) {
+      return frontError(res, "File is empty.");
+    }
+
+    let extractedEmails = [];
+    try {
+      const azureResponse = await client.path("/imageanalysis:analyze").post({
         body: buffer,
-        queryParameters: { features: ['Read'] },
-        headers: { 'Content-Type': 'application/octet-stream' }
+        queryParameters: { features: ["Read"] },
+        headers: { "Content-Type": "application/octet-stream" },
       });
 
-    // 2️⃣ Pull out all lines of text
-    const blocks = response.body.readResult.blocks || [];
-    const lines = blocks.flatMap(block => block.lines.map(line => line.text));
+      const blocks = azureResponse.body.readResult.blocks || [];
+      const azureLines = blocks.flatMap((block) =>
+        block.lines.map((line) => line.text)
+      );
+      const azureExtractedText = azureLines.join("\n");
+      extractedEmails =
+        azureExtractedText.match(
+          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+        ) || [];
+    } catch (azureError) {
+      console.error("Azure OCR failed:", azureError);
+    }
 
-    // 3️⃣ Join them into one big string
-    const extractedText = lines.join('\n');
-    // ───────────────────────────────────────────────────────────────────
-    console.log("===== extractedText ===== : ", extractedText)
-
-    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const extractedEmails = extractedText.match(emailRegex) || [];
-
-    console.log("===== extractedEmails ===== : ", extractedEmails)
+    if (extractedEmails.length === 0) {
+      const tesseractExtractedText = await queue.add(async () => {
+        const result = await Tesseract.recognize(buffer);
+        return result.data.text;
+      });
+      extractedEmails =
+        tesseractExtractedText.match(
+          /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g
+        ) || [];
+    }
 
     if (extractedEmails.length === 0) {
       return frontError(res, "No valid email found in the screenshot.");
@@ -242,12 +128,11 @@ export async function uploadEmailScreenshot(req, res) {
       attributes: ["uuid", "email", "status"],
     });
 
-    const existingEmailList = existingEmails.map((e) => e.email);
+    const existingEmailList = new Set(existingEmails.map((e) => e.email));
     const newEmails = extractedEmails.filter(
-      (email) => !existingEmailList.includes(email)
+      (email) => !existingEmailList.has(email)
     );
 
-    // Get user's assigned password
     const user = await User.findByPk(userUid, {
       attributes: ["passwordUuid"],
       include: {
@@ -256,121 +141,64 @@ export async function uploadEmailScreenshot(req, res) {
       },
     });
 
-    if (!user.Password || !user.Password.password) {
-      return validationError(
-        res,
-        "Cannot upload screenshot. Try again later. If the issue persists, contact admin. [Error Code: PASSWORD]"
-      );
+    if (!user || !user.Password?.password) {
+      return validationError(res, "Password not found.");
     }
 
-    const emailEntries = [];
+    const emailEntries = newEmails.map((email) => ({
+      email,
+      password: user.Password.password,
+      fileName: filename,
+      emailScreenshot: key,
+      remarks: "",
+      userUuid: userUid,
+      status: "pending",
+    }));
 
-    // Create new email entries
-    for (const email of newEmails) {
-      emailEntries.push({
-        email,
-        password: user.Password.password,
-        fileName: filename,
-        emailScreenshot: emailScreenshotPath,
-        remarks: "",
-        userUuid: userUid,
-        status: "pending",
-      });
-    }
-
-    // Bulk insert new emails
     if (emailEntries.length > 0) {
       await Email.bulkCreate(emailEntries);
     }
 
-    // Log duplicate emails in DuplicateEmail table
+    // Log duplicate emails
     for (const existing of existingEmails) {
-      await DuplicateEmail.create({
-        emailUuid: existing.uuid,
-        uploadedByUuid: userUid,
-        fileName: filename,
+      await DuplicateEmail.findOrCreate({
+        where: {
+          emailUuid: existing.uuid,
+          uploadedByUuid: userUid,
+        },
+        defaults: {
+          fileName: filename, // ✅ Include the filename to avoid the NOT NULL violation
+        },
       });
     }
 
-    // Get system admin for notification messages in chat
-    let systemAdmin = await Admin.findOne({
-      where: { username: "systemadmin" },
-    });
+    const title =
+      existingEmailList.size === 1
+        ? "Duplicate Email Found"
+        : "Duplicate Emails Found";
+    const message = `${existingEmailList.size} duplicate email(s) detected.`;
 
-    console.log("===== systemAdmin ===== :", systemAdmin)
-
-    if (!systemAdmin) systemAdmin = await Admin.findOne(); // fallback to any admin
-
-    console.log("===== !systemAdmin ===== :", systemAdmin)
-    // Notify user
-    if (existingEmailList.length > 0) {
-      const title =
-        existingEmailList.length === 1
-          ? "Duplicate Email Found"
-          : "Duplicate Emails Found";
-
-      let message = `${existingEmailList.length} duplicate email(s) detected.`;
-      if (newEmails.length > 0) {
-        message += ` The remaining ${newEmails.length} email(s) were uploaded successfully.`;
-      }
-
-      await createNotification({
-        userUuid: userUid,
-        title,
-        message,
-        type: "duplicate_email",
-        metadata: { duplicateEmails: existingEmailList },
-      });
-
-      if (systemAdmin) {
-        await saveMessageToDB({
-          senderUuid: systemAdmin.uuid,
-          senderType: "admin",
-          receiverUuid: userUid,
-          receiverType: "user",
-          content: `${message} ----- duplicateEmails: ${existingEmailList}`,
-          isNotification: true,
-        });
-      } else {
-        console.warn("⚠️ No admin found. Skipping system notification.");
-      }
-
-      console.log("===== validation error message ===== : ", message)
-
-      return validationError(res, message);
-    }
-
-    // All emails were new
     await createNotification({
       userUuid: userUid,
-      title: "New Email(s) Uploaded",
-      message: `${newEmails.length} new email(s) have been successfully uploaded and processed.`,
-      type: "success",
+      title,
+      message,
+      type: "duplicate_email",
+      metadata: { duplicateEmails: Array.from(existingEmailList) },
     });
-
-    if (systemAdmin) {
-      await saveMessageToDB({
-        senderUuid: systemAdmin.uuid,
-        senderType: "admin",
-        receiverUuid: userUid,
-        receiverType: "user",
-        content: `New Email(s) Uploaded ----- ${newEmails.length} new email(s) have been successfully uploaded and processed.`,
-        isNotification: true,
-      });
-    } else {
-      console.warn("⚠️ No admin found. Skipping system notification.");
-    }
 
     return successOk(
       res,
-      "Email screenshot uploaded & processed successfully."
+      "Email screenshot uploaded & processed successfully.",
+      {
+        url: fullUrl,
+        extractedEmails,
+      }
     );
   } catch (error) {
-    console.log("===== Error ===== :", error);
+    console.error("Error processing email screenshot:", error);
     return catchError(res, error);
   }
 }
-
 
 // ========================= Get All Emails ============================
 
@@ -384,48 +212,72 @@ export async function getAllEmails(req, res) {
       endDate,
       orderBy = "createdAt",
       order = "DESC",
+      limit = 20,
+      offset = 0,
+      search,
     } = req.query;
 
     // Build the query conditions
-    const whereCondition = {
-      userUuid: userUid,
-    };
+    const whereCondition = { userUuid: userUid };
 
     // Apply status filter if provided
     if (status) {
       whereCondition.status = status;
     }
 
+    // Apply search filter if provided (matches email address)
+    if (search) {
+      whereCondition.email = { [Op.iLike]: `%${search}%` };
+    }
+
     // Apply date range filter (adjusted to cover the entire day)
     if (startDate) {
       whereCondition.createdAt = {
-        [Op.gte]: new Date(`${startDate}T00:00:00.000Z`), // Start of the day
-      };
-    }
-    if (endDate) {
-      whereCondition.createdAt = {
-        ...(whereCondition.createdAt || {}),
-        [Op.lte]: new Date(`${endDate}T23:59:59.999Z`), // End of the day
+        [Op.gte]: new Date(`${startDate}T00:00:00.000Z`),
       };
     }
 
-    // Fetch filtered and ordered emails
+    if (endDate) {
+      whereCondition.createdAt = {
+        ...(whereCondition.createdAt || {}),
+        [Op.lte]: new Date(`${endDate}T23:59:59.999Z`),
+      };
+    }
+
+    // Fetch filtered and ordered emails with pagination
     const emails = await Email.findAll({
       where: whereCondition,
       order: [[orderBy, order.toUpperCase()]], // Ensure order is uppercase (ASC/DESC)
-      // include: [
-      //   {
-      //     model: User,
-      //     as: "user",
-      //     attributes: ["uuid", "username"],
-      //   },
-      // ],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
     if (!emails.length) return notFound(res, "No emails found.");
 
-    return successOkWithData(res, "Profile fetched successfully", emails);
+    // Add full S3 URL to each email entry
+    const bucketName = process.env.S3_BUCKET_NAME;
+    const region = process.env.AWS_REGION;
+    const s3UrlPrefix = `https://${bucketName}.s3.${region}.amazonaws.com/`;
+
+    const emailsWithFullUrl = emails.map((email) => {
+      const emailData = email.toJSON();
+      const screenshotPath = emailData.emailScreenshot;
+
+      // Only add the prefix if it's not already a full URL
+      if (!screenshotPath.startsWith("http")) {
+        emailData.emailScreenshot = `${s3UrlPrefix}${screenshotPath}`;
+      }
+
+      return emailData;
+    });
+
+    return successOkWithData(
+      res,
+      "Emails fetched successfully",
+      emailsWithFullUrl
+    );
   } catch (error) {
+    console.error("Error fetching emails:", error);
     return catchError(res, error);
   }
 }
@@ -434,7 +286,7 @@ export async function getAllEmails(req, res) {
 
 export async function getEmailStats(req, res) {
   try {
-    const userUuid = req.userUid
+    const userUuid = req.userUid;
     const [pendingCount, goodCount, badCount, totalCount] = await Promise.all([
       Email.count({ where: { status: "pending", userUuid } }),
       Email.count({ where: { status: "good", userUuid } }),
